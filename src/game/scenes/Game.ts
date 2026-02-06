@@ -3,7 +3,7 @@ import { Scene } from 'phaser';
 import { LevelLoader } from '../LevelLoader';
 import { LevelData } from '../types';
 import { SAMPLE_LEVEL } from '../sampleLevel';
-import { askNPC } from '../openai';
+import { askNPC, captureScreenshot } from '../openai';
 
 export class Game extends Scene
 {
@@ -150,10 +150,13 @@ export class Game extends Scene
         console.log('Textbox submitted:', text);
         if (!text.trim()) return;
 
+        // Capture current game screen
+        const screenshot = captureScreenshot(this.game.canvas);
+
         // Show a "thinking" bubble while waiting for the API
         this.showSpeechBubble('...');
 
-        askNPC(text).then((reply) => {
+        askNPC(text, screenshot).then((reply) => {
             this.showSpeechBubble(reply);
         });
     }

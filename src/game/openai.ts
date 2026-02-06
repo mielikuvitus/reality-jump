@@ -1,11 +1,23 @@
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY as string;
 const API_URL = 'https://api.openai.com/v1/chat/completions';
 
-const SYSTEM_PROMPT = `You are a helpful AI NPC in a 2D platformer game. The player can ask you for help when they're stuck. Keep your responses short (1-3 sentences max), friendly, and game-relevant. You can give hints about movement (arrow keys/WASD to move, W/Up to jump), the level layout, enemies, pickups, and the exit. Stay in character as a cheerful game companion.`;
+import npcConfig from './npcConfig.json';
+
+// Build the system prompt from the JSON config
+const SYSTEM_PROMPT = [
+    npcConfig.system_prompt,
+    `Personality: ${npcConfig.personality}`,
+    `Game context: ${npcConfig.context}`,
+    `Rules:\n${npcConfig.rules.map(r => `- ${r}`).join('\n')}`,
+    'You can see the current game screen. Use it to give specific, situational advice about what the player should do next based on what you observe (player position, nearby platforms, enemies, pickups, etc).',
+].join('\n\n');
+
+// Flexible message content type for vision support
+type MessageContent = string | Array<{ type: string; text?: string; image_url?: { url: string; detail?: string } }>;
 
 interface ChatMessage {
     role: 'system' | 'user' | 'assistant';
-    content: string;
+    content: MessageContent;
 }
 
 /** Maintains conversation history for context */
@@ -13,12 +25,34 @@ const conversationHistory: ChatMessage[] = [
     { role: 'system', content: SYSTEM_PROMPT }
 ];
 
-export async function askNPC(userMessage: string): Promise<string> {
+/** Capture the Phaser canvas as a base64 data URL */
+export function captureScreenshot(canvas: HTMLCanvasElement): string {
+    return canvas.toDataURL('image/png');
+}
+
+export async function askNPC(userMessage: string, screenshotBase64?: string): Promise<string> {
     if (!OPENAI_API_KEY || OPENAI_API_KEY === 'your-api-key-here') {
         return '(No API key set — add your key to .env as VITE_OPENAI_API_KEY)';
     }
 
-    conversationHistory.push({ role: 'user', content: userMessage });
+    // Build the user message with optional screenshot
+    if (screenshotBase64) {
+        conversationHistory.push({
+            role: 'user',
+            content: [
+                { type: 'text', text: userMessage },
+                {
+                    type: 'image_url',
+                    image_url: {
+                        url: screenshotBase64,
+                        detail: 'low' // low detail to save tokens
+                    }
+                }
+            ]
+        });
+    } else {
+        conversationHistory.push({ role: 'user', content: userMessage });
+    }
 
     try {
         const response = await fetch(API_URL, {
