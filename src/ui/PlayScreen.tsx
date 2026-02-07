@@ -38,7 +38,9 @@ export function PlayScreen({ photoUrl, sceneData, onBack, onRetake }: PlayScreen
 
     const [debugEnabled, setDebugEnabled] = useState(isDev);
     const [won, setWon] = useState(false);
+    const [lost, setLost] = useState(false);
     const [score, setScore] = useState(0);
+    const [health, setHealth] = useState(10);
 
     // Preload photo dimensions, then create Phaser game
     useEffect(() => {
@@ -130,16 +132,27 @@ export function PlayScreen({ photoUrl, sceneData, onBack, onRetake }: PlayScreen
             setWon(true);
             setScore(data.score);
         };
+        const handleLose = (data: { score: number }) => {
+            setLost(true);
+            setScore(data.score);
+        };
         const handleScore = (newScore: number) => {
             setScore(newScore);
         };
+        const handleHealth = (newHealth: number) => {
+            setHealth(newHealth);
+        };
 
         EventBus.on('game-won', handleWin);
+        EventBus.on('game-lost', handleLose);
         EventBus.on('score-update', handleScore);
+        EventBus.on('health-update', handleHealth);
 
         return () => {
             EventBus.off('game-won', handleWin);
+            EventBus.off('game-lost', handleLose);
             EventBus.off('score-update', handleScore);
+            EventBus.off('health-update', handleHealth);
         };
     }, []);
 
@@ -150,7 +163,9 @@ export function PlayScreen({ photoUrl, sceneData, onBack, onRetake }: PlayScreen
 
     const handlePlayAgain = () => {
         setWon(false);
+        setLost(false);
         setScore(0);
+        setHealth(10);
         // Restart the scene
         if (gameRef.current) {
             const scene = gameRef.current.scene.getScene('GameScene');
@@ -171,7 +186,12 @@ export function PlayScreen({ photoUrl, sceneData, onBack, onRetake }: PlayScreen
                 <button className="play-screen__back-btn" onClick={onBack}>
                     <Icon icon={ArrowLeft} size={16} /> Back
                 </button>
-                <div className="play-screen__score">Score: {score}</div>
+                <div className="play-screen__stats">
+                    <span className="play-screen__score">Score: {score}</span>
+                    <span className={`play-screen__health ${health <= 2 ? 'play-screen__health--low' : ''}`}>
+                        HP: {health}
+                    </span>
+                </div>
                 <button
                     className={`play-screen__debug-btn ${debugEnabled ? 'play-screen__debug-btn--active' : ''}`}
                     onClick={() => setDebugEnabled(!debugEnabled)}
@@ -189,9 +209,25 @@ export function PlayScreen({ photoUrl, sceneData, onBack, onRetake }: PlayScreen
                         onRetake={onRetake}
                     />
                 )}
+                {lost && (
+                    <div className="lose-overlay">
+                        <div className="lose-overlay__card">
+                            <h2 className="lose-overlay__title">Game Over</h2>
+                            {score > 0 && <p className="lose-overlay__score">Score: {score}</p>}
+                            <div className="lose-overlay__actions">
+                                <button className="glass-button lose-overlay__retry-btn" onClick={handlePlayAgain}>
+                                    Try Again
+                                </button>
+                                <button className="glass-button glass-button--secondary" onClick={onRetake}>
+                                    New Photo
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {!won && <MobileControls inputState={inputState} />}
+            <MobileControls inputState={inputState} disabled={won || lost} />
         </div>
     );
 }

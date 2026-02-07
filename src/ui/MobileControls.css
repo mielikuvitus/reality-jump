@@ -50,4 +50,8 @@
     letter-spacing: 0.5px;
 }
 
-/* Controls are always visible — desktop users see the same mobile layout */
+/* Disabled state — controls stay visible but muted */
+.mobile-controls--disabled {
+    opacity: 0.35;
+    pointer-events: none;
+}

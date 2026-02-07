@@ -1,20 +1,171 @@
 /* Capture & Upload Screen - Main Container */
 
 .capture-upload-screen {
+    position: relative;
     min-height: 100vh;
     min-height: 100dvh; /* Dynamic viewport height for mobile */
     display: flex;
     flex-direction: column;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
     background: linear-gradient(
         135deg,
         #0f0f1a 0%,
         #1a1a2e 50%,
         #16213e 100%
     );
+    overflow: hidden;
+}
+
+/* Large decorative background logo */
+.capture-upload-screen__bg-logo {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    height: 120vh;
+    width: auto;
+    opacity: 0.1;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Top nav bar — transparent, always visible */
+.capture-upload-screen__nav {
+    position: relative;
+    z-index: 1;
+    padding: 16px 20px 16px;
+}
+
+.capture-upload-screen__nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.capture-upload-screen__nav-title {
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.95);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    line-height: 1;
+}
+
+.capture-upload-screen__nav-svg {
+    height: 24px;
+    width: auto;
+}
+
+/* Intro card — groups description with the capture button */
+.capture-upload-screen__intro-card {
+    padding: 24px;
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    margin-bottom: 24px;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.capture-upload-screen__greeting {
+    margin: 0 0 12px 0;
+    font-size: 20px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.85);
+    text-align: center;
+}
+
+.capture-upload-screen__description {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.4);
+    text-align: center;
+    font-weight: 400;
+}
+
+.capture-upload-screen__intro-action {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    width: 100%;
+}
+
+.capture-upload-screen__intro-action .camera-capture {
+    max-width: 100%;
+    align-items: stretch;
+}
+
+.capture-upload-screen__intro-action .camera-capture__button {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Preview section — photo + actions after capture */
+.capture-upload-screen__preview-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 360px;
+    margin: 0 auto;
+}
+
+.capture-upload-screen__preview-img {
+    width: 100%;
+    height: auto;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.capture-upload-screen__preview-hint {
+    margin: 0;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.4);
+    text-align: center;
+}
+
+.capture-upload-screen__preview-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.capture-upload-screen__retake-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: all 0.2s ease;
+}
+
+.capture-upload-screen__retake-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.95);
+}
+
+.capture-upload-screen__retake-btn:active {
+    transform: scale(0.98);
 }
 
 .capture-upload-screen__header {
-    padding: 24px 20px 16px;
+    position: relative;
+    z-index: 1;
+    padding: 16px 20px 16px;
     text-align: center;
 }
 
@@ -33,11 +184,19 @@
 }
 
 .capture-upload-screen__content {
+    position: relative;
+    z-index: 1;
     flex: 1;
     display: flex;
     flex-direction: column;
     padding: 16px;
     padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+/* Center the Take Photo button vertically and horizontally */
+.capture-upload-screen__content--centered {
+    justify-content: center;
+    align-items: center;
 }
 
 /* Upload Section */
@@ -194,8 +353,33 @@
 
 /* Responsive adjustments */
 @media (max-width: 480px) {
+    .capture-upload-screen__nav {
+        padding: 12px 16px 16px;
+    }
+
+    .capture-upload-screen__nav-title {
+        font-size: 20px;
+    }
+
+    .capture-upload-screen__nav-svg {
+        height: 20px;
+    }
+
+    .capture-upload-screen__intro-card {
+        padding: 24px;
+        max-width: 260px;
+    }
+
+    .capture-upload-screen__greeting {
+        font-size: 18px;
+    }
+
+    .capture-upload-screen__description {
+        font-size: 13px;
+    }
+
     .capture-upload-screen__header {
-        padding: 16px 16px 12px;
+        padding: 12px 16px 12px;
     }
     
     .capture-upload-screen__title {
@@ -207,6 +391,6 @@
     }
     
     .capture-upload-screen__content {
-        padding: 12px;
+        padding: 16px;
     }
 }

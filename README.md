@@ -45,7 +45,6 @@ Player reaches the exit flag → Win!
 
 **Not yet implemented:**
 
-- Enemies / hazards in gameplay (schema supports them, factories are stubs)
 - Obstacle collision
 - ECS-style systems (files exist as stubs)
 - Real AI integration (backend returns hardcoded scene data)
@@ -83,8 +82,8 @@ Open on mobile: Check terminal for `Network:` URL (e.g., `http://192.168.1.x:808
 2. **Upload** - Photo is compressed (max 1024px, JPEG 0.75) and sent to the backend
 3. **Validate** - Backend response is validated against the Zod SceneV1 schema
 4. **Preview** - Detected objects are shown overlaid on the photo with color-coded bounding boxes
-5. **Play** - Phaser creates a platformer level; player navigates platforms, collects pickups, reaches the exit
-6. **Win** - Score screen with options to replay or take a new photo
+5. **Play** - Phaser creates a platformer level; player navigates platforms, collects pickups, avoids enemies, reaches the exit
+6. **Win/Lose** - Win by reaching the exit flag. Lose if health reaches 0. Score screen with options to replay or take a new photo
 
 ## Project Structure
 
@@ -115,7 +114,7 @@ Open on mobile: Check terminal for `Network:` URL (e.g., `http://192.168.1.x:808
 | `src/game/factories/PlayerFactory.ts` | Creates the player sprite with collision body |
 | `src/game/factories/PickupFactory.ts` | Creates coin and health pickup sprites |
 | `src/game/factories/ExitFactory.ts` | Creates the exit flag goal sprite |
-| `src/game/factories/EnemyFactory.ts` | Enemy factory (stub) |
+| `src/game/factories/EnemyFactory.ts` | Creates enemy sprites from spawn data |
 | `src/game/assets/IconTextureFactory.ts` | Runtime Canvas-based sprite generation (no external assets) |
 | `src/game/assets/lucide_icon_map.ts` | SVG path data for game icons |
 | `src/game/physics/PhysicsConfig.ts` | Adaptive physics calculations (jump height, speed) |
@@ -131,9 +130,9 @@ Open on mobile: Check terminal for `Network:` URL (e.g., `http://192.168.1.x:808
 
 | Path | Description |
 | --- | --- |
-| `src/shared/schema/scene_v1.schema.ts` | Zod schema for SceneV1 validation |
-| `src/shared/schema/scene_v1.types.ts` | TypeScript types derived from schema |
-| `src/shared/schema/SceneV1.ts` | SceneV1 type re-exports |
+| `src/shared/schema/scene_v1.schema.ts` | **Single source of truth:** Zod schema, TS types, parse helper, enemy anchor helpers |
+| `src/shared/schema/scene_v1.types.ts` | Re-export shim (backward compat) — delegates to schema.ts |
+| `src/shared/schema/SceneV1.ts` | Re-export shim (backward compat) — delegates to schema.ts |
 | `src/shared/schema/scene_v1.schema.test.ts` | Schema validation tests |
 | `src/shared/types/` | Type stubs (Detection, RuleModifier, Spawn, Surface) |
 
@@ -170,10 +169,15 @@ These files exist but are currently empty, representing planned ECS-style system
 
 | Path | Description |
 | --- | --- |
+| `docs/ai_scene_schema.md` | Scene V1 JSON schema documentation |
 | `docs/backend_contract.md` | API specification for backend team |
 | `docs/testing_upload.md` | Testing guide with curl examples |
 
 ## Scene Data Format (SceneV1)
+
+> **Full schema documentation:** [`docs/ai_scene_schema.md`](docs/ai_scene_schema.md)
+>
+> **Canonical source:** `src/shared/schema/scene_v1.schema.ts`
 
 The AI returns a JSON object describing detected objects and spawn points. All coordinates are **normalized** (0.0 to 1.0).
 
@@ -190,13 +194,23 @@ The AI returns a JSON object describing detected objects and spawn points. All c
       "label": "table",
       "confidence": 0.85,
       "bounds_normalized": { "x": 0.1, "y": 0.6, "w": 0.4, "h": 0.05 },
-      "surface_type": "solid"
+      "surface_type": "solid",
+      "category": "furniture"
+    },
+    {
+      "id": "obs_plant",
+      "type": "obstacle",
+      "label": "plant",
+      "confidence": 0.92,
+      "bounds_normalized": { "x": 0.45, "y": 0.50, "w": 0.08, "h": 0.15 },
+      "category": "plant",
+      "enemy_spawn_anchor": true
     }
   ],
   "spawns": {
     "player": { "x": 0.1, "y": 0.5 },
     "exit": { "x": 0.9, "y": 0.3 },
-    "enemies": [],
+    "enemies": [{ "x": 0.5, "y": 0.5, "type": "walker" }],
     "pickups": [{ "x": 0.5, "y": 0.4, "type": "coin" }]
   },
   "rules": []
@@ -205,15 +219,27 @@ The AI returns a JSON object describing detected objects and spawn points. All c
 
 ### Object Types & Caps
 
-| Type | Max Count | Status |
+| Type | Max Count | Description |
 | --- | --- | --- |
-| `platform` | 12 | Implemented |
-| `obstacle` | 8 | Schema only |
-| `collectible` | 10 | Schema only |
-| `hazard` | 8 | Schema only |
-| `decoration` | 25 | Schema only |
+| `platform` | 12 | Surfaces the player can stand on |
+| `obstacle` | 8 | Blocking objects |
+| `collectible` | 10 | Items the player can pick up |
+| `hazard` | 8 | Damage-dealing areas |
+| `enemy` | 2 | Enemy entities |
 
 Maximum total objects: **25**
+
+### Object Categories
+
+| Category | Enemy Spawn Anchor? |
+| --- | --- |
+| `plant` | Yes |
+| `electric` | Yes |
+| `food` | No |
+| `furniture` | No |
+| `other` | No |
+
+Objects with `category: "plant"` or `"electric"` (or explicit `enemy_spawn_anchor: true`) are treated as candidate enemy spawn positions.
 
 ### Surface Types
 
@@ -222,6 +248,13 @@ Maximum total objects: **25**
 ### Pickup Types
 
 `coin` (+1 score), `health` (+5 score)
+
+### Health System
+
+- Player starts with **10 HP**
+- Enemy contact deals **2 damage** (with 1 second invulnerability cooldown)
+- Health reaches 0 → Game Over
+- HP displayed in header next to score (turns red when low)
 
 ## For Backend Developer
 
@@ -280,7 +313,7 @@ All positions from the AI use normalized coordinates (0.0 to 1.0). The game worl
 
 ### React ↔ Phaser Bridge
 
-An `EventBus` (Phaser EventEmitter) bridges React and Phaser. Mobile controls write to a shared `InputState` object that Phaser reads each frame. Game events (`game-won`, `score-update`, `toggle-debug`) flow from Phaser to React.
+An `EventBus` (Phaser EventEmitter) bridges React and Phaser. Mobile controls write to a shared `InputState` object that Phaser reads each frame. Game events (`game-won`, `game-lost`, `score-update`, `health-update`, `toggle-debug`) flow from Phaser to React.
 
 ### Schema Validation
 

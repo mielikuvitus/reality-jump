@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { parseSceneV1 } from './scene_v1.schema';
+import { parseSceneV1, isEnemySpawnAnchor, getEnemySpawnAnchors, type SceneObject } from './scene_v1.schema';
 
 // ---------------------------------------------------------------------------
 // Helper: minimal valid scene (reused as base, then mutated for failure tests)
@@ -192,9 +192,52 @@ describe('parseSceneV1 — invalid inputs', () => {
         }
     });
 
+    it('rejects too many enemies (cap: 2)', () => {
+        const scene = validScene();
+        scene.objects = Array.from({ length: 3 }, (_, i) => ({
+            id: `enemy_${i}`,
+            type: 'enemy' as const,
+            bounds_normalized: { x: 0.1, y: 0.1, w: 0.06, h: 0.1 },
+        }));
+        const result = parseSceneV1(scene);
+        expect(result.ok).toBe(false);
+        if (!result.ok) {
+            expect(result.errors.some(e => e.includes('enemy'))).toBe(true);
+        }
+    });
+
+    it('rejects game_mechanics.damage_amount > 50', () => {
+        const scene = validScene();
+        scene.objects.push({
+            id: 'e1', type: 'enemy',
+            bounds_normalized: { x: 0.5, y: 0.5, w: 0.06, h: 0.1 },
+            game_mechanics: { damage_amount: 100 },
+        });
+        const result = parseSceneV1(scene);
+        expect(result.ok).toBe(false);
+    });
+
+    it('rejects game_mechanics.speed_multiplier < 0.5', () => {
+        const scene = validScene();
+        scene.objects.push({
+            id: 'e1', type: 'enemy',
+            bounds_normalized: { x: 0.5, y: 0.5, w: 0.06, h: 0.1 },
+            game_mechanics: { speed_multiplier: 0.1 },
+        });
+        const result = parseSceneV1(scene);
+        expect(result.ok).toBe(false);
+    });
+
     it('rejects unknown surface_type', () => {
         const scene = validScene();
         (scene.objects[0] as Record<string, unknown>).surface_type = 'lava';
+        const result = parseSceneV1(scene);
+        expect(result.ok).toBe(false);
+    });
+
+    it('rejects unknown category', () => {
+        const scene = validScene();
+        (scene.objects[0] as Record<string, unknown>).category = 'alien';
         const result = parseSceneV1(scene);
         expect(result.ok).toBe(false);
     });
@@ -254,13 +297,34 @@ describe('parseSceneV1 — valid inputs', () => {
             { id: 'o1', type: 'obstacle', bounds_normalized: { x: 0.1, y: 0.1, w: 0.1, h: 0.2 } },
             { id: 'c1', type: 'collectible', bounds_normalized: { x: 0.3, y: 0.3, w: 0.05, h: 0.05 } },
             { id: 'h1', type: 'hazard', bounds_normalized: { x: 0.5, y: 0.8, w: 0.2, h: 0.04 } },
-            { id: 'd1', type: 'decoration', bounds_normalized: { x: 0.7, y: 0.1, w: 0.1, h: 0.1 } },
+            { id: 'e1', type: 'enemy', bounds_normalized: { x: 0.6, y: 0.5, w: 0.06, h: 0.1 } },
         ];
         const result = parseSceneV1(scene);
         expect(result.ok).toBe(true);
         if (result.ok) {
             expect(result.data.objects.length).toBe(5);
         }
+    });
+
+    it('accepts enemy with game_mechanics', () => {
+        const scene = validScene();
+        scene.objects.push({
+            id: 'e1', type: 'enemy', label: 'angry', confidence: 0.9,
+            bounds_normalized: { x: 0.5, y: 0.5, w: 0.06, h: 0.1 },
+            game_mechanics: { damage_amount: 20, speed_multiplier: 1.2 },
+        });
+        const result = parseSceneV1(scene);
+        expect(result.ok).toBe(true);
+    });
+
+    it('accepts enemy without game_mechanics', () => {
+        const scene = validScene();
+        scene.objects.push({
+            id: 'e1', type: 'enemy',
+            bounds_normalized: { x: 0.5, y: 0.5, w: 0.06, h: 0.1 },
+        });
+        const result = parseSceneV1(scene);
+        expect(result.ok).toBe(true);
     });
 
     it('accepts boundary coordinates (0 and 1)', () => {
@@ -273,7 +337,7 @@ describe('parseSceneV1 — valid inputs', () => {
     });
 
     it('accepts all valid surface types', () => {
-        const surfaces = ['solid', 'bouncy', 'slippery', 'breakable'] as const;
+        const surfaces = ['solid', 'bouncy', 'slippery', 'breakable', 'soft'] as const;
         for (const surface of surfaces) {
             const scene = validScene();
             (scene.objects[0] as Record<string, unknown>).surface_type = surface;
@@ -334,6 +398,50 @@ describe('parseSceneV1 — valid inputs', () => {
         }
     });
 
+    it('accepts object with category', () => {
+        const scene = validScene();
+        scene.objects[0].category = 'furniture';
+        const result = parseSceneV1(scene);
+        expect(result.ok).toBe(true);
+    });
+
+    it('accepts all valid categories', () => {
+        const categories = ['plant', 'electric', 'food', 'furniture', 'other'] as const;
+        for (const cat of categories) {
+            const scene = validScene();
+            scene.objects[0].category = cat;
+            const result = parseSceneV1(scene);
+            expect(result.ok).toBe(true);
+        }
+    });
+
+    it('accepts object without category (backward compatible)', () => {
+        const scene = validScene();
+        // No category field at all — must still pass
+        delete scene.objects[0].category;
+        const result = parseSceneV1(scene);
+        expect(result.ok).toBe(true);
+    });
+
+    it('accepts object with enemy_spawn_anchor flag', () => {
+        const scene = validScene();
+        scene.objects[0].enemy_spawn_anchor = true;
+        const result = parseSceneV1(scene);
+        expect(result.ok).toBe(true);
+    });
+
+    it('accepts object with category + enemy_spawn_anchor together', () => {
+        const scene = validScene();
+        scene.objects[0].category = 'plant';
+        scene.objects[0].enemy_spawn_anchor = true;
+        const result = parseSceneV1(scene);
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+            expect(result.data.objects[0].category).toBe('plant');
+            expect(result.data.objects[0].enemy_spawn_anchor).toBe(true);
+        }
+    });
+
     it('strips unknown extra fields (Zod default behavior)', () => {
         const scene = {
             ...validScene(),
@@ -346,5 +454,51 @@ describe('parseSceneV1 — valid inputs', () => {
             expect((result.data as Record<string, unknown>).foo).toBeUndefined();
             expect((result.data as Record<string, unknown>).extraField).toBeUndefined();
         }
+    });
+});
+
+// ============================================================
+//  ENEMY SPAWN ANCHOR HELPER TESTS
+// ============================================================
+
+describe('isEnemySpawnAnchor', () => {
+    const base: SceneObject = {
+        id: 'test',
+        type: 'obstacle',
+        bounds_normalized: { x: 0.1, y: 0.1, w: 0.1, h: 0.1 },
+    };
+
+    it('returns true for category "plant"', () => {
+        expect(isEnemySpawnAnchor({ ...base, category: 'plant' })).toBe(true);
+    });
+
+    it('returns true for category "electric"', () => {
+        expect(isEnemySpawnAnchor({ ...base, category: 'electric' })).toBe(true);
+    });
+
+    it('returns true when enemy_spawn_anchor is true', () => {
+        expect(isEnemySpawnAnchor({ ...base, enemy_spawn_anchor: true })).toBe(true);
+    });
+
+    it('returns false for category "furniture"', () => {
+        expect(isEnemySpawnAnchor({ ...base, category: 'furniture' })).toBe(false);
+    });
+
+    it('returns false when neither category nor flag is set', () => {
+        expect(isEnemySpawnAnchor(base)).toBe(false);
+    });
+});
+
+describe('getEnemySpawnAnchors', () => {
+    it('filters only anchor objects', () => {
+        const objects: SceneObject[] = [
+            { id: 'p1', type: 'platform', category: 'furniture', bounds_normalized: { x: 0, y: 0, w: 0.5, h: 0.1 } },
+            { id: 'o1', type: 'obstacle', category: 'plant', bounds_normalized: { x: 0.3, y: 0.3, w: 0.1, h: 0.2 } },
+            { id: 'o2', type: 'obstacle', category: 'electric', bounds_normalized: { x: 0.6, y: 0.6, w: 0.1, h: 0.1 } },
+            { id: 'o3', type: 'obstacle', bounds_normalized: { x: 0.8, y: 0.8, w: 0.05, h: 0.05 } },
+        ];
+        const anchors = getEnemySpawnAnchors(objects);
+        expect(anchors.length).toBe(2);
+        expect(anchors.map(a => a.id)).toEqual(['o1', 'o2']);
     });
 });

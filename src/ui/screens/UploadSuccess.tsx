@@ -57,7 +57,7 @@ export function UploadSuccess({
                         <span className="summary-value">{spawns.enemies.length}</span>
                     </div>
                     <div className="summary-item">
-                        <span className="summary-label">Pickups</span>
+                        <span className="summary-label">Collectibles</span>
                         <span className="summary-value">{spawns.pickups.length}</span>
                     </div>
                 </div>
@@ -74,17 +74,12 @@ export function UploadSuccess({
                             <Icon icon={Play} size={20} /> Play Level
                         </button>
                     )}
-                    <button className="glass-button glass-button--primary" onClick={onPreview}>
-                        <Icon icon={Play} size={16} /> Preview Level
+                    <button className="glass-button glass-button--secondary" onClick={onPreview}>
+                        <Icon icon={Play} size={14} /> Preview Level
                     </button>
-                    <div className="button-row">
-                        <button className="glass-button glass-button--secondary" onClick={onUploadAgain}>
-                            <Icon icon={RefreshCw} size={14} /> Upload Again
-                        </button>
-                        <button className="glass-button glass-button--secondary" onClick={onRetake}>
-                            <Icon icon={Camera} size={14} /> Retake
-                        </button>
-                    </div>
+                    <button className="glass-button glass-button--secondary" onClick={onRetake}>
+                        <Icon icon={Camera} size={14} /> Retake Photo
+                    </button>
                 </div>
             </div>
         </div>

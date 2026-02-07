@@ -22,7 +22,7 @@
  */
 
 import { Scene } from 'phaser';
-import type { SceneV1, SceneObject } from '../../shared/schema/scene_v1.types';
+import { type SceneV1, type SceneObject, isEnemySpawnAnchor } from '../../shared/schema/scene_v1.schema';
 import { normToWorldX, normToWorldY, normRectToWorldRect } from '../utils/coords';
 import { EventBus } from '../EventBus';
 
@@ -32,7 +32,7 @@ const TYPE_COLORS: Record<string, number> = {
     obstacle:    0xfbbf24, // amber
     collectible: 0x60a5fa, // blue
     hazard:      0xef4444, // red
-    decoration:  0xa78bfa, // purple
+    enemy:       0xef4444, // red
 };
 
 const TYPE_ALPHA: Record<string, number> = {
@@ -40,7 +40,7 @@ const TYPE_ALPHA: Record<string, number> = {
     obstacle:    0.35,
     collectible: 0.35,
     hazard:      0.4,
-    decoration:  0.2,
+    enemy:       0.45,
 };
 
 export interface PreviewSceneData {
@@ -184,9 +184,11 @@ export class PreviewScene extends Scene {
         }
 
         // Label above the object
+        const anchorTag = isEnemySpawnAnchor(obj) ? ' [ANCHOR]' : '';
+        const categoryTag = obj.category ? ` [${obj.category}]` : '';
         const labelText = obj.label
-            ? `${obj.id} · ${obj.label} (${obj.type})`
-            : `${obj.id} (${obj.type})`;
+            ? `${obj.id} · ${obj.label} (${obj.type})${categoryTag}${anchorTag}`
+            : `${obj.id} (${obj.type})${categoryTag}${anchorTag}`;
 
         const label = this.add.text(rect.x + 4, rect.y - 18, labelText, {
             fontSize: '11px',
@@ -200,22 +202,6 @@ export class PreviewScene extends Scene {
 
     private drawSpawnMarkers() {
         const spawns = this.sceneData.spawns;
-
-        this.createSpawnMarker(
-            normToWorldX(spawns.player.x, this.worldW),
-            normToWorldY(spawns.player.y, this.worldH),
-            'PLAYER',
-            0x22d3ee,
-            14
-        );
-
-        this.createSpawnMarker(
-            normToWorldX(spawns.exit.x, this.worldW),
-            normToWorldY(spawns.exit.y, this.worldH),
-            'EXIT',
-            0xfbbf24,
-            14
-        );
 
         for (let i = 0; i < spawns.enemies.length; i++) {
             const e = spawns.enemies[i];
@@ -274,8 +260,7 @@ export class PreviewScene extends Scene {
         this.debugLayer.add(text);
     }
 
-    destroy() {
+    shutdown() {
         EventBus.off('toggle-debug', this.handleToggleDebug, this);
-        super.destroy();
     }
 }

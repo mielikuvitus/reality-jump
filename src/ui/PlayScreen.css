@@ -50,10 +50,27 @@
     cursor: pointer;
 }
 
+.play-screen__stats {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+}
+
 .play-screen__score {
     font-size: 14px;
     font-weight: 600;
     color: rgba(255, 255, 255, 0.85);
+}
+
+.play-screen__health {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(74, 222, 128, 0.9);
+    transition: color 0.2s ease;
+}
+
+.play-screen__health--low {
+    color: rgba(239, 68, 68, 0.95);
 }
 
 .play-screen__debug-btn {
@@ -88,4 +105,64 @@
 .play-screen__canvas {
     position: absolute;
     inset: 0;
+}
+
+/* --- Lose overlay --- */
+
+.lose-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 20;
+}
+
+.lose-overlay__card {
+    text-align: center;
+    padding: 32px 40px;
+    background: rgba(30, 10, 10, 0.7);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 16px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.lose-overlay__title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #ef4444;
+    margin: 0 0 8px;
+}
+
+.lose-overlay__score {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 20px;
+}
+
+.lose-overlay__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.lose-overlay__retry-btn {
+    padding: 18px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.95);
+    animation: retry-pulse 2s ease-in-out infinite;
+}
+
+@keyframes retry-pulse {
+    0%, 100% {
+        border-color: rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.06);
+    }
+    50% {
+        border-color: rgba(255, 255, 255, 0.5);
+        background: rgba(255, 255, 255, 0.14);
+    }
 }

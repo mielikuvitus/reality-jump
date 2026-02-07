@@ -1,30 +1,29 @@
 /**
- * SCENE V1 TYPES
- * ===============
+ * SCENE V1 TYPES  —  Re-export shim
+ * ====================================
  *
- * TypeScript types derived from the Zod schema.
- * These are the canonical types used throughout the app.
+ * All types are now defined in scene_v1.schema.ts (single source of truth).
+ * This file re-exports them for backward compatibility so existing imports
+ * continue to work without modification.
  *
- * No React or Phaser imports here - these are pure data types.
+ * For new code, import directly from './scene_v1.schema'.
  */
 
-import { z } from 'zod';
-import { SceneV1Schema } from './scene_v1.schema';
+export type {
+    SceneV1,
+    SceneObject,
+    SceneObjectType,
+    SceneObjectCategory,
+    BoundsNormalized,
+    SceneSpawns,
+    GameMechanics,
+    NormalizedPoint,
+} from './scene_v1.schema';
 
-/** Full validated Scene V1 data */
-export type SceneV1 = z.output<typeof SceneV1Schema>;
-
-/** A single object in the scene */
-export type SceneObject = SceneV1['objects'][number];
-
-/** Object type enum */
-export type SceneObjectType = SceneObject['type'];
-
-/** Normalized bounding box */
-export type BoundsNormalized = SceneObject['bounds_normalized'];
-
-/** Spawn data */
-export type SceneSpawns = SceneV1['spawns'];
-
-/** Normalized point */
-export type NormalizedPoint = { x: number; y: number };
+export {
+    SceneV1Schema,
+    parseSceneV1,
+    validateCaps,
+    isEnemySpawnAnchor,
+    getEnemySpawnAnchors,
+} from './scene_v1.schema';

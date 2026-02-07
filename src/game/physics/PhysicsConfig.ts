@@ -31,6 +31,9 @@ const RATIOS = {
     /** Pickup sprite size as fraction of worldH */
     pickupSize: 0.04,
 
+    /** Enemy sprite size as fraction of worldH */
+    enemySize: 0.055,
+
     /** Player physics body width relative to sprite size */
     bodyWidthRatio: 0.58,
 
@@ -136,6 +139,7 @@ export interface ComputedPhysics {
     playerBodyHeight: number;
     exitSizePx: number;
     pickupSizePx: number;
+    enemySizePx: number;
     minPlatformWidth: number;
     minPlatformHeight: number;
 }
@@ -156,6 +160,7 @@ export function computePhysics(
     const playerSizePx = Math.max(Math.round(RATIOS.playerSize * worldH), 16);
     const exitSizePx = Math.max(Math.round(RATIOS.exitSize * worldH), 16);
     const pickupSizePx = Math.max(Math.round(RATIOS.pickupSize * worldH), 12);
+    const enemySizePx = Math.max(Math.round(RATIOS.enemySize * worldH), 16);
 
     const gravityY = RATIOS.gravityMultiplier * worldH;
 
@@ -179,6 +184,7 @@ export function computePhysics(
         playerBodyHeight: Math.round(playerSizePx * RATIOS.bodyHeightRatio),
         exitSizePx,
         pickupSizePx,
+        enemySizePx,
         minPlatformWidth: RATIOS.minPlatformWidthFraction * worldW,
         minPlatformHeight: RATIOS.minPlatformHeightFraction * worldH,
     };

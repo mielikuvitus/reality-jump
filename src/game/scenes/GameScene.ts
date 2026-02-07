@@ -16,16 +16,18 @@
  *
  * Win condition: player overlaps exit sprite.
  * Collectibles: overlap pickups -> score increment.
+ * Health: player starts with 10 HP. Enemy contact costs 2 HP.
  */
 
 import { Scene } from 'phaser';
-import type { SceneV1 } from '../../shared/schema/scene_v1.types';
+import { type SceneV1, isEnemySpawnAnchor } from '../../shared/schema/scene_v1.schema';
 import { normToWorldX, normToWorldY } from '../utils/coords';
 import { computePhysics, type ComputedPhysics } from '../physics/PhysicsConfig';
 import { createPlayer } from '../factories/PlayerFactory';
 import { createPlatforms } from '../factories/PlatformFactory';
 import { createExit } from '../factories/ExitFactory';
 import { createPickups, PickupSprite } from '../factories/PickupFactory';
+import { createEnemies, type EnemySprite } from '../factories/EnemyFactory';
 import { EventBus } from '../EventBus';
 import type { InputState } from '../input/InputState';
 
@@ -57,7 +59,18 @@ export class GameScene extends Scene {
     private spaceKey!: Phaser.Input.Keyboard.Key;
 
     private score = 0;
+    private health = 10;
     private gameWon = false;
+    private gameLost = false;
+
+    /** Brief invulnerability after taking damage (prevents instant multi-hits) */
+    private invulnerableUntil = 0;
+
+    /** Enemy group — needed for patrol update logic */
+    private enemyGroup?: Phaser.Physics.Arcade.Group;
+
+    /** Current surface type the player is standing on (updated by collider callback) */
+    private currentSurfaceType: string = 'solid';
 
     // Debug layer
     private debugLayer!: Phaser.GameObjects.Container;
@@ -73,7 +86,10 @@ export class GameScene extends Scene {
         this.inputState = data.inputState;
         this.debugEnabled = data.debugEnabled ?? true;
         this.score = 0;
+        this.health = 10;
         this.gameWon = false;
+        this.gameLost = false;
+        this.invulnerableUntil = 0;
         this.photoTextureKey = undefined;
 
         // World dimensions from game config (PlayScreen sets these to photo dimensions)
@@ -84,6 +100,7 @@ export class GameScene extends Scene {
         // Jump height adapts to the largest vertical gap in the level.
         this.phys = computePhysics(this.worldW, this.worldH, this.sceneData);
 
+        const anchors = this.sceneData.objects.filter(isEnemySpawnAnchor);
         console.info('[GameScene] init:', {
             worldW: this.worldW,
             worldH: this.worldH,
@@ -92,6 +109,7 @@ export class GameScene extends Scene {
             jumpVelocity: Math.round(this.phys.jumpVelocity),
             playerSpeed: Math.round(this.phys.playerSpeed),
             objects: this.sceneData.objects.length,
+            enemySpawnAnchors: anchors.map(a => a.id),
         });
     }
 
@@ -106,11 +124,23 @@ export class GameScene extends Scene {
         // --- Set gravity at runtime (not in config, since it depends on world size) ---
         this.physics.world.gravity.y = this.phys.gravityY;
 
-        // --- Photo background ---
+        // --- Photo background (darkened + blur for gameplay visibility) ---
         if (this.photoTextureKey && this.textures.exists(this.photoTextureKey)) {
             const photo = this.add.image(0, 0, this.photoTextureKey).setOrigin(0, 0);
             photo.setDisplaySize(this.worldW, this.worldH);
-            photo.setAlpha(0.7);
+            photo.setAlpha(0.5);
+
+            // Apply a slight blur via Phaser's built-in pipeline
+            if (photo.postFX) {
+                photo.postFX.addBlur(0, 2, 2, 1);
+            }
+
+            // Dark overlay on top of the photo for extra contrast
+            this.add.rectangle(
+                this.worldW / 2, this.worldH / 2,
+                this.worldW, this.worldH,
+                0x000000, 0.25,
+            );
         } else {
             this.add.rectangle(
                 this.worldW / 2, this.worldH / 2,
@@ -138,8 +168,14 @@ export class GameScene extends Scene {
         const playerY = normToWorldY(spawn.y, this.worldH);
         this.player = createPlayer(this, playerX, playerY, this.phys);
 
-        // Player <-> Platforms collision
-        this.physics.add.collider(this.player, platformGroup);
+        // Player <-> Platforms collision (callback tracks surface type)
+        this.physics.add.collider(this.player, platformGroup, (_player, platObj) => {
+            const zone = platObj as Phaser.GameObjects.Zone;
+            const surfaceType = zone.getData('surfaceType') as string | undefined;
+            if (surfaceType) {
+                this.currentSurfaceType = surfaceType;
+            }
+        });
 
         // --- Exit ---
         const exitSpawn = this.sceneData.spawns.exit;
@@ -170,11 +206,77 @@ export class GameScene extends Scene {
 
             this.physics.add.overlap(this.player, pickupGroup, (_player, pickup) => {
                 const p = pickup as PickupSprite;
-                p.disableBody(true, true);
-                this.score += p.pickupType === 'health' ? 5 : 1;
-                EventBus.emit('score-update', this.score);
+
+                if (p.pickupType === 'health') {
+                    // Health pickup: restore 5 HP, capped at 10. Skip if already full.
+                    if (this.health >= 10) return;
+                    p.disableBody(true, true);
+                    this.health = Math.min(10, this.health + 5);
+                    EventBus.emit('health-update', this.health);
+                } else {
+                    // Coin pickup: +1 score
+                    p.disableBody(true, true);
+                    this.score += 1;
+                    EventBus.emit('score-update', this.score);
+                }
             });
         }
+
+        // --- Enemies ---
+        if (this.sceneData.spawns.enemies.length > 0) {
+            this.enemyGroup = createEnemies(
+                this,
+                this.sceneData.spawns.enemies,
+                this.worldW,
+                this.worldH,
+                this.phys,
+            );
+
+            // Enemies collide with platforms — callback sets patrol bounds on landing
+            this.physics.add.collider(this.enemyGroup, platformGroup, (enemyObj, platObj) => {
+                const enemy = enemyObj as EnemySprite;
+                const platBody = (platObj as Phaser.GameObjects.Zone).body as Phaser.Physics.Arcade.StaticBody;
+                const enemyBody = enemy.body as Phaser.Physics.Arcade.Body;
+
+                // Detect landing: enemy bottom is at or just above the platform top
+                // (position-based check — more reliable than blocked.down in callbacks)
+                const enemyBottom = enemyBody.y + enemyBody.height;
+                const platTop = platBody.y;
+                if (enemyBottom > platTop + 4) return; // side collision, not landing
+
+                const halfEnemy = enemyBody.width / 2;
+                const platLeft = platBody.x;
+                const platRight = platBody.x + platBody.width;
+
+                enemy.patrolLeft = platLeft + halfEnemy;
+                enemy.patrolRight = platRight - halfEnemy;
+                enemy.patrolReady = true;
+            });
+
+            // Player overlaps enemy -> take damage
+            this.physics.add.overlap(this.player, this.enemyGroup, () => {
+                if (this.gameWon || this.gameLost) return;
+                if (this.time.now < this.invulnerableUntil) return;
+
+                this.health = Math.max(0, this.health - 2);
+                this.invulnerableUntil = this.time.now + 1000; // 1s invulnerability
+                EventBus.emit('health-update', this.health);
+
+                // Brief red flash to indicate damage
+                this.player.setTintFill(0xff4444);
+                this.time.delayedCall(200, () => {
+                    this.player.clearTint();
+                });
+
+                if (this.health <= 0) {
+                    this.gameLost = true;
+                    this.handleLose();
+                }
+            });
+        }
+
+        // Emit initial health so UI is in sync
+        EventBus.emit('health-update', this.health);
 
         // Score is shown in the React header — no in-game HUD needed
 
@@ -208,7 +310,7 @@ export class GameScene extends Scene {
     }
 
     update() {
-        if (this.gameWon) return;
+        if (this.gameWon || this.gameLost) return;
 
         const body = this.player.body as Phaser.Physics.Arcade.Body;
 
@@ -226,23 +328,87 @@ export class GameScene extends Scene {
             || this.spaceKey?.isDown
             || this.wasd?.W?.isDown;
 
+        // Surface modifiers (soft = slower movement, normal jump)
+        const onSoft = body.blocked.down && this.currentSurfaceType === 'soft';
+        const speedMul = onSoft ? 0.6 : 1;
+        const jumpMul = 1;
+
         // Horizontal movement (world-relative speed)
+        const speed = this.phys.playerSpeed * speedMul;
         if (left) {
-            body.setVelocityX(-this.phys.playerSpeed);
+            body.setVelocityX(-speed);
         } else if (right) {
-            body.setVelocityX(this.phys.playerSpeed);
+            body.setVelocityX(speed);
         } else {
             body.setVelocityX(0);
         }
 
         // Jump (only when touching ground, world-relative velocity)
         if (jump && body.blocked.down) {
-            body.setVelocityY(this.phys.jumpVelocity);
+            body.setVelocityY(this.phys.jumpVelocity * jumpMul);
+        }
+
+        // Reset surface type when airborne (will be set again on next landing)
+        if (!body.blocked.down) {
+            this.currentSurfaceType = 'solid';
         }
 
         // Consume jump to prevent continuous jumping from held button
         if (jump && !body.blocked.down) {
             this.inputState.jump = false;
+        }
+
+        // --- Enemy patrol logic ---
+        this.updateEnemyPatrol();
+    }
+
+    /** Move each enemy back and forth within its patrol bounds. */
+    private updateEnemyPatrol() {
+        if (!this.enemyGroup) return;
+
+        for (const obj of this.enemyGroup.getChildren()) {
+            const enemy = obj as EnemySprite;
+            if (!enemy.active) continue;
+
+            const eb = enemy.body as Phaser.Physics.Arcade.Body;
+            const speed = enemy.patrolSpeed;
+
+            // While falling (not on ground), just keep current horizontal velocity
+            if (!eb.blocked.down) continue;
+
+            // Ensure the enemy is always moving at patrol speed
+            if (eb.velocity.x === 0) {
+                eb.setVelocityX(-speed);
+            }
+
+            const movingLeft = eb.velocity.x < 0;
+
+            // --- Reverse at world bounds (walls / sides of play area) ---
+            if (eb.blocked.left || enemy.x <= eb.halfWidth) {
+                enemy.x = Math.max(enemy.x, eb.halfWidth);
+                eb.setVelocityX(speed);
+                enemy.setFlipX(true);
+                continue;
+            }
+            if (eb.blocked.right || enemy.x >= this.worldW - eb.halfWidth) {
+                enemy.x = Math.min(enemy.x, this.worldW - eb.halfWidth);
+                eb.setVelocityX(-speed);
+                enemy.setFlipX(false);
+                continue;
+            }
+
+            // --- Reverse at platform edges (only if bounds are known) ---
+            if (enemy.patrolReady) {
+                if (movingLeft && enemy.x <= enemy.patrolLeft) {
+                    enemy.x = enemy.patrolLeft;
+                    eb.setVelocityX(speed);
+                    enemy.setFlipX(true);
+                } else if (!movingLeft && enemy.x >= enemy.patrolRight) {
+                    enemy.x = enemy.patrolRight;
+                    eb.setVelocityX(-speed);
+                    enemy.setFlipX(false);
+                }
+            }
         }
     }
 
@@ -251,6 +417,14 @@ export class GameScene extends Scene {
         body.setVelocity(0, 0);
         body.setAllowGravity(false);
         EventBus.emit('game-won', { score: this.score });
+    }
+
+    private handleLose() {
+        const body = this.player.body as Phaser.Physics.Arcade.Body;
+        body.setVelocity(0, 0);
+        body.setAllowGravity(false);
+        this.player.setTintFill(0xff0000);
+        EventBus.emit('game-lost', { score: this.score });
     }
 
     private handleToggleDebug = (enabled: boolean) => {
@@ -273,13 +447,24 @@ export class GameScene extends Scene {
 
             const colors: Record<string, number> = {
                 platform: 0x4ade80, obstacle: 0xfbbf24,
-                collectible: 0x60a5fa, hazard: 0xef4444, decoration: 0xa78bfa,
+                collectible: 0x60a5fa, hazard: 0xef4444,
+                enemy: 0xef4444,
             };
             const color = colors[obj.type] ?? 0xffffff;
             g.lineStyle(1, color, 0.5);
             g.strokeRect(rect.x, rect.y, rect.w, rect.h);
 
-            const label = this.add.text(rect.x + 2, rect.y - markerR * 2, `${obj.id}`, {
+            // Mark enemy spawn anchors with a small orange diamond
+            if (isEnemySpawnAnchor(obj)) {
+                const cx = rect.x + rect.w / 2;
+                const cy = rect.y + rect.h / 2;
+                g.fillStyle(0xf97316, 0.7);
+                g.fillTriangle(cx, cy - 6, cx + 6, cy, cx, cy + 6);
+                g.fillTriangle(cx, cy - 6, cx - 6, cy, cx, cy + 6);
+            }
+
+            const anchorTag = isEnemySpawnAnchor(obj) ? ' [ANCHOR]' : '';
+            const label = this.add.text(rect.x + 2, rect.y - markerR * 2, `${obj.id}${anchorTag}`, {
                 fontSize, color: '#fff',
                 backgroundColor: 'rgba(0,0,0,0.6)',
                 padding: { x: 3, y: 1 },
@@ -287,20 +472,5 @@ export class GameScene extends Scene {
             this.debugLayer.add(label);
         }
 
-        const spawns = this.sceneData.spawns;
-        this.drawSpawnDot(normToWorldX(spawns.player.x, this.worldW), normToWorldY(spawns.player.y, this.worldH), 0x22d3ee, 'P', markerR, fontSize);
-        this.drawSpawnDot(normToWorldX(spawns.exit.x, this.worldW), normToWorldY(spawns.exit.y, this.worldH), 0xfbbf24, 'E', markerR, fontSize);
-    }
-
-    private drawSpawnDot(x: number, y: number, color: number, label: string, r: number, fontSize: string) {
-        const g = this.debugGraphics;
-        g.fillStyle(color, 0.8);
-        g.fillCircle(x, y, r);
-        const text = this.add.text(x + r + 4, y - r, label, {
-            fontSize, fontStyle: 'bold', color: '#fff',
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            padding: { x: 3, y: 1 },
-        });
-        this.debugLayer.add(text);
     }
 }

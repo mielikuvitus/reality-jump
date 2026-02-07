@@ -1,8 +1,11 @@
 /**
- * SCENE V1 ZOD SCHEMA
- * ====================
+ * SCENE V1 ZOD SCHEMA  —  SINGLE SOURCE OF TRUTH
+ * =================================================
  *
- * Validates the Scene JSON returned by the backend AI proxy.
+ * This module is the authoritative definition for the Scene JSON contract.
+ * All TypeScript types, parse helpers, and validation logic live here.
+ *
+ * Schema docs: docs/ai_scene_schema.md
  *
  * WHY RUNTIME VALIDATION?
  * The backend/AI pipeline is an untrusted input source. Models can hallucinate
@@ -10,7 +13,7 @@
  * problems *before* Phaser tries to render, giving the user a clear error
  * instead of a cryptic crash.
  *
- * SCHEMA SOURCE OF TRUTH:
+ * COORDINATES:
  * All coordinates are **normalized** (0..1 range). The frontend converts
  * them to world-pixel coords using src/game/utils/coords.ts.
  *
@@ -20,11 +23,19 @@
  * - Obstacles: max 8
  * - Collectibles: max 10
  * - Hazards: max 8
+ * - Enemies: max 2
+ *
+ * ENEMY SPAWN ANCHORS:
+ * Objects with category "plant" or "electric" (or with enemy_spawn_anchor: true)
+ * are treated as candidate positions for enemy spawning. The engine decides
+ * final enemy placement, but the schema encodes the AI's recommendation.
  */
 
 import { z } from 'zod';
 
-// --- Sub-schemas ---
+// ---------------------------------------------------------------------------
+// Sub-schemas
+// ---------------------------------------------------------------------------
 
 /** Normalized bounding box (all values 0..1) */
 const BoundsNormalizedSchema = z.object({
@@ -40,8 +51,23 @@ const ObjectTypeEnum = z.enum([
     'obstacle',
     'collectible',
     'hazard',
-    'decoration',
+    'enemy',
 ]);
+
+/** Object category — describes the real-world nature of the detected object */
+const ObjectCategoryEnum = z.enum([
+    'plant',
+    'electric',
+    'food',
+    'furniture',
+    'other',
+]);
+
+/** Optional gameplay mechanics (validated loosely; clamping is engine-side) */
+const GameMechanicsSchema = z.object({
+    damage_amount: z.number().min(0).max(50).optional(),
+    speed_multiplier: z.number().min(0.5).max(2.0).optional(),
+}).passthrough().optional();
 
 /** Single detected/generated object */
 const SceneObjectSchema = z.object({
@@ -50,7 +76,12 @@ const SceneObjectSchema = z.object({
     label: z.string().optional(),
     confidence: z.number().min(0).max(1).optional(),
     bounds_normalized: BoundsNormalizedSchema,
-    surface_type: z.enum(['solid', 'bouncy', 'slippery', 'breakable']).optional(),
+    surface_type: z.enum(['solid', 'bouncy', 'slippery', 'breakable', 'soft']).optional(),
+    game_mechanics: GameMechanicsSchema,
+    /** Real-world category of the detected object (optional, backward compatible) */
+    category: ObjectCategoryEnum.optional(),
+    /** If true, AI recommends spawning an enemy near this object */
+    enemy_spawn_anchor: z.boolean().optional(),
 });
 
 /** Normalized point {x, y} in 0..1 */
@@ -99,6 +130,7 @@ const TYPE_CAPS: Record<string, number> = {
     obstacle: 8,
     collectible: 10,
     hazard: 8,
+    enemy: 2,
 };
 
 /**
@@ -175,4 +207,56 @@ export function parseSceneV1(input: unknown): ParseSuccess | ParseFailure {
     );
 
     return { ok: true, data };
+}
+
+// ---------------------------------------------------------------------------
+// Derived TypeScript types  (single source of truth — no separate types file)
+// ---------------------------------------------------------------------------
+
+/** Full validated Scene V1 data */
+export type SceneV1 = z.output<typeof SceneV1Schema>;
+
+/** A single object in the scene */
+export type SceneObject = SceneV1['objects'][number];
+
+/** Object type enum */
+export type SceneObjectType = SceneObject['type'];
+
+/** Object category enum */
+export type SceneObjectCategory = NonNullable<SceneObject['category']>;
+
+/** Normalized bounding box */
+export type BoundsNormalized = SceneObject['bounds_normalized'];
+
+/** Spawn data */
+export type SceneSpawns = SceneV1['spawns'];
+
+/** Optional gameplay mechanics attached to an object */
+export type GameMechanics = SceneObject['game_mechanics'];
+
+/** Normalized point */
+export type NormalizedPoint = { x: number; y: number };
+
+// ---------------------------------------------------------------------------
+// Enemy spawn anchor helpers
+// ---------------------------------------------------------------------------
+
+/** Categories that indicate an object should serve as an enemy spawn anchor */
+const ENEMY_ANCHOR_CATEGORIES: ReadonlySet<string> = new Set(['plant', 'electric']);
+
+/**
+ * Returns true if the object is an enemy spawn anchor — either because
+ * the AI explicitly flagged it or because its category is plant/electric.
+ */
+export function isEnemySpawnAnchor(obj: SceneObject): boolean {
+    if (obj.enemy_spawn_anchor === true) return true;
+    if (obj.category && ENEMY_ANCHOR_CATEGORIES.has(obj.category)) return true;
+    return false;
+}
+
+/**
+ * Filter all enemy spawn anchors from a scene's objects array.
+ */
+export function getEnemySpawnAnchors(objects: SceneObject[]): SceneObject[] {
+    return objects.filter(isEnemySpawnAnchor);
 }

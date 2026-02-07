@@ -17,12 +17,14 @@ import './MobileControls.css';
 
 interface MobileControlsProps {
     inputState: InputState;
+    disabled?: boolean;
 }
 
-export function MobileControls({ inputState }: MobileControlsProps) {
+export function MobileControls({ inputState, disabled = false }: MobileControlsProps) {
     const handlePointerDown = useCallback((key: keyof InputState) => {
+        if (disabled) return;
         inputState[key] = true;
-    }, [inputState]);
+    }, [inputState, disabled]);
 
     const handlePointerUp = useCallback((key: keyof InputState) => {
         inputState[key] = false;
@@ -38,7 +40,7 @@ export function MobileControls({ inputState }: MobileControlsProps) {
     });
 
     return (
-        <div className="mobile-controls">
+        <div className={`mobile-controls ${disabled ? 'mobile-controls--disabled' : ''}`}>
             <div className="mobile-controls__left">
                 <button className="mobile-controls__btn" {...bind('left')}>
                     <Icon icon={ArrowLeft} size={28} />

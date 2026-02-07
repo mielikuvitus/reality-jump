@@ -16,12 +16,14 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Minus, Plus } from 'lucide-react';
+import { Minus, Plus, RefreshCw } from 'lucide-react';
 import { CameraCapture, CaptureData } from './CameraCapture';
 import { UploadFlow } from './UploadFlow';
 import type { UploadFlowState } from './UploadFlow';
 import { Icon } from './Icon';
+import { SplashLogo } from './SplashLogo';
 import './CaptureAndUploadScreen.css';
+import './screens/UploadScreens.css';
 
 type ScreenState = 'capture' | 'preview' | 'uploading';
 
@@ -143,36 +145,74 @@ export function CaptureAndUploadScreen() {
 
     return (
         <div className="capture-upload-screen">
-            <div className="capture-upload-screen__header">
-                <h1 className="capture-upload-screen__title">Scene Generator</h1>
-                <p className="capture-upload-screen__subtitle">{getSubtitle()}</p>
-            </div>
+            {/* Large background logo — decorative, behind all content */}
+            <SplashLogo className="capture-upload-screen__bg-logo" />
 
-            <div className="capture-upload-screen__content">
-                {(screenState === 'capture' || screenState === 'preview') && (
-                    <CameraCapture 
-                        onCapture={handleCapture}
-                        onRetake={handleRetake}
-                        showDebugInfo={showImageInfo}
-                    />
-                )}
+            <nav className="capture-upload-screen__nav">
+                <div className="capture-upload-screen__nav-logo">
+                    <span className="capture-upload-screen__nav-title logo">Reality Jump</span>
+                    <SplashLogo className="capture-upload-screen__nav-svg" />
+                </div>
+            </nav>
 
-                {screenState === 'preview' && capturedBlob && (
-                    <div className="capture-upload-screen__upload-section">
-                        <UploadFlow 
-                            blob={capturedBlob}
-                            photoUrl={photoUrl}
-                            onRetake={handleRetake}
-                            onUploadStart={handleUploadStart}
-                            onFlowStateChange={handleFlowStateChange}
-                            demoRandom={demoRandom}
-                            mockMode={mockMode}
-                            mockFallback={mockFallback}
-                            showSceneJson={showSceneJson}
-                        />
+            <div className={`capture-upload-screen__content ${screenState === 'capture' ? 'capture-upload-screen__content--centered' : ''}`}>
+                {/* --- Capture state: intro card with Take Photo inside --- */}
+                {screenState === 'capture' && (
+                    <div className="capture-upload-screen__intro-card">
+                        <h1 className="screen-title">
+                            Hey Level Designer!
+                        </h1>
+                        <p className="summary-label" style={{ textAlign: 'center' }}>
+                            Turn your world into a game!<br />
+                            Snap a photo and let's start building.
+                        </p>
+                        <div className="capture-upload-screen__intro-action">
+                            <CameraCapture 
+                                onCapture={handleCapture}
+                                onRetake={handleRetake}
+                                showDebugInfo={showImageInfo}
+                            />
+                        </div>
                     </div>
                 )}
 
+                {/* --- Preview state: photo + retake + upload --- */}
+                {screenState === 'preview' && photoUrl && (
+                    <div className="capture-upload-screen__preview-section">
+                        <img
+                            src={photoUrl}
+                            alt="Captured photo"
+                            className="capture-upload-screen__preview-img"
+                        />
+                        <p className="capture-upload-screen__preview-hint">Review your photo or generate a level</p>
+                        <div className="capture-upload-screen__preview-actions">
+                            <button
+                                type="button"
+                                className="capture-upload-screen__retake-btn"
+                                onClick={handleRetake}
+                            >
+                                <Icon icon={RefreshCw} size={16} /> Retake
+                            </button>
+                        </div>
+                        {capturedBlob && (
+                            <div className="capture-upload-screen__upload-section">
+                                <UploadFlow 
+                                    blob={capturedBlob}
+                                    photoUrl={photoUrl}
+                                    onRetake={handleRetake}
+                                    onUploadStart={handleUploadStart}
+                                    onFlowStateChange={handleFlowStateChange}
+                                    demoRandom={demoRandom}
+                                    mockMode={mockMode}
+                                    mockFallback={mockFallback}
+                                    showSceneJson={showSceneJson}
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* --- Uploading state --- */}
                 {screenState === 'uploading' && (
                     <UploadFlow 
                         blob={capturedBlob}
