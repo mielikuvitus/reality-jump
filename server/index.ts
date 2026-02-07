@@ -1,8 +1,13 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { sceneRouter } from './routes/scene';
 
 const PORT = process.env.PORT || 3001;
+
+if (!process.env.OPENAI_API_KEY) {
+    console.warn('⚠️  OPENAI_API_KEY not set — AI vision will fail and fallback scene will be used');
+}
 
 const app = express();
 
