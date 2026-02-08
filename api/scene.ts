@@ -11,16 +11,40 @@ export const config = {
     },
 };
 
-const SYSTEM_PROMPT = `You are a computer-vision AI for a 2D platformer game called Reality Jump.
+const DESCRIBE_PROMPT = `You are a precise visual analyst. Study this photo carefully.
 
-You receive a photo of a real-world environment (e.g. a room, desk, outdoor scene).
-Your job is to identify objects in the photo and map them to game objects for a 2D side-scrolling platformer.
+List EVERY distinct object you can see. For EACH object, provide:
+1. What it is (e.g. "wooden table", "laptop", "potted plant")
+2. Its approximate position as a fraction of the image (0.0-1.0 for both x and y, where 0,0 is top-left)
+3. Its approximate width and height as a fraction of the image
+4. Whether its TOP SURFACE is flat/horizontal (could someone stand on it?)
 
-Return ONLY valid JSON (no markdown, no backticks, no explanation) matching this exact schema:
+Focus especially on:
+- Flat horizontal surfaces at different heights (tables, shelves, window sills, books, boxes) — these become PLATFORMS
+- Small items (cups, bottles, fruit, pens, toys) — these become COLLECTIBLES
+- Potentially dangerous items (sharp edges, electronics, hot surfaces) — these become HAZARDS
+- Large blocking items (chairs, bags, bins) — these become OBSTACLES
+- Plants and electronics — these are ENEMY SPAWN points
+
+Format your response as a numbered list. Be precise about positions.`;
+
+const GENERATE_PROMPT = `You are a game level designer for a 2D side-scrolling platformer called Reality Jump.
+
+You will receive a description of objects detected in a photo. Convert this into a playable platformer level.
+
+GAME DESIGN PRINCIPLES:
+- The player starts bottom-left and must reach an exit at top-right
+- Create a path of platforms the player can JUMP between to reach the exit
+- Platforms should be at DIFFERENT HEIGHTS creating a staircase-like path upward
+- Space platforms so the player can reach them with jumps (vertical gap ~0.10-0.20, horizontal gap ~0.15-0.30)
+- Place collectibles along the path to reward exploration
+- Place 1-2 enemies on wider platforms for challenge
+
+Return ONLY valid JSON (no markdown, no backticks, no explanation):
 
 {
   "version": 1,
-  "image": { "w": <image_width_px>, "h": <image_height_px> },
+  "image": { "w": 1280, "h": 720 },
   "objects": [
     {
       "id": "<unique_string>",
@@ -43,33 +67,34 @@ Return ONLY valid JSON (no markdown, no backticks, no explanation) matching this
 }
 
 COORDINATE RULES:
-- ALL coordinates are normalized 0.0-1.0 (fraction of image width/height)
-- bounds_normalized: x,y is the top-left corner; w,h is width/height of bounding box
-- Platform "h" (height) should be THIN: 0.02-0.06 — represents the TOP EDGE of surfaces
-- Use the image as reference: estimate w=1280, h=720 if unsure
+- ALL coordinates normalized 0.0-1.0
+- bounds_normalized: x,y is the TOP-LEFT corner
+- Platform "h" MUST be thin: 0.02-0.06 (top walking surface only)
+- y-axis goes DOWN: y=0.0 is TOP, y=1.0 is BOTTOM
 
-OBJECT RULES:
-- Max 25 objects total
-- Max 12 platforms, 8 obstacles, 10 collectibles, 8 hazards
-- Identify flat horizontal surfaces (tables, shelves, desks, floors, ledges) as platforms
-- Small items (cups, bottles, pens, food) → collectible
-- Dangerous items (sharp edges, electronics with cords, hot items) → hazard
-- Blocking items (chairs, boxes, bags) → obstacle
-- If fewer than 3 platform candidates found, INVENT reasonable ones based on what you see
-- Each object needs a unique "id" like "plat_1", "obs_1", "col_1", "haz_1"
+PLATFORM LAYOUT (most important):
+- You MUST create a jumpable path from bottom-left to top-right
+- LOWEST platform around y=0.80-0.85 (near bottom)
+- HIGHEST platform around y=0.15-0.25 (near top, where exit goes)
+- Create 4-8 platforms at STAGGERED heights between these
+- Each platform must be reachable from at least one other platform
+- Minimum platform width: 0.10, typical: 0.15-0.35
+
+OBJECT LIMITS:
+- Max 25 total (12 platforms, 8 obstacles, 10 collectibles, 8 hazards)
+- MUST have at least 4 platforms
+- Unique ids: "plat_1", "obs_1", "col_1", "haz_1"
 
 CATEGORY & ENEMY ANCHORS:
-- Set category to: "plant" (plants/flowers/trees), "electric" (laptops/monitors/lamps/chargers), "food" (food/drinks), "furniture" (tables/chairs/shelves), "other" (anything else)
-- Set enemy_spawn_anchor: true for category "plant" or "electric"
+- enemy_spawn_anchor: true for "plant" or "electric" categories
 
 SPAWN RULES:
-- Player spawn: bottom-left area (x: 0.05-0.15, y: 0.75-0.90)
-- Exit: top-right area (x: 0.80-0.95, y: 0.10-0.25)
-- Max 2 enemies, type "walker", placed ON platforms
-- 3-8 pickups (mix of "coin" and "health"), placed ON or near platforms
-- Place pickups and enemies slightly ABOVE platforms (lower y value by ~0.05-0.10)
+- Player: bottom-left (x: 0.05-0.15, y: 0.75-0.85) ON a platform
+- Exit: top-right (x: 0.80-0.95, y: 0.10-0.25) ON a platform
+- 1-2 enemies "walker" ON wider platforms
+- 3-8 pickups (mix "coin"/"health") ON platforms
 
-CRITICAL: Return ONLY the JSON object. No markdown fences, no explanation, no extra text.`;
+CRITICAL: Level MUST be playable — player must be able to jump platform-to-platform from spawn to exit. Return ONLY JSON.`;
 
 function parseMultipart(req: VercelRequest): Promise<{ buffer: Buffer; mimetype: string }> {
     return new Promise((resolve, reject) => {
@@ -109,40 +134,56 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const base64Image = buffer.toString('base64');
         const dataUrl = `data:${mimetype};base64,${base64Image}`;
 
-        console.log(`[${timestamp}] request=${requestId} sending to OpenAI GPT-4o...`);
+        // === PASS 1: Describe the image ===
+        console.log(`[${timestamp}] request=${requestId} Pass 1: describing image...`);
 
-        const completion = await openai.chat.completions.create({
+        const describeResult = await openai.chat.completions.create({
             model: 'gpt-4o',
-            max_tokens: 2000,
-            temperature: 0.3,
+            max_tokens: 1500,
+            temperature: 0.2,
             messages: [
-                { role: 'system', content: SYSTEM_PROMPT },
+                { role: 'system', content: DESCRIBE_PROMPT },
                 {
                     role: 'user',
                     content: [
-                        {
-                            type: 'text',
-                            text: 'Analyze this photo and return the Scene JSON for a 2D platformer level. Identify all objects, surfaces, and items visible.',
-                        },
-                        {
-                            type: 'image_url',
-                            image_url: {
-                                url: dataUrl,
-                                detail: 'low',
-                            },
-                        },
+                        { type: 'text', text: 'Describe all objects in this photo with their positions.' },
+                        { type: 'image_url', image_url: { url: dataUrl, detail: 'high' } },
                     ],
                 },
             ],
         });
 
-        const raw = completion.choices?.[0]?.message?.content;
-        if (!raw) {
-            console.error(`[${timestamp}] request=${requestId} empty AI response`);
-            return res.status(502).json({ error: 'Empty response from AI' });
+        const description = describeResult.choices?.[0]?.message?.content;
+        if (!description) {
+            console.error(`[${timestamp}] request=${requestId} Pass 1: empty response`);
+            return res.status(502).json({ error: 'AI returned empty description' });
         }
 
-        console.log(`[${timestamp}] request=${requestId} AI responded, length=${raw.length}`);
+        console.log(`[${timestamp}] request=${requestId} Pass 1 done (${description.length} chars)`);
+
+        // === PASS 2: Generate level JSON from description ===
+        console.log(`[${timestamp}] request=${requestId} Pass 2: generating level...`);
+
+        const generateResult = await openai.chat.completions.create({
+            model: 'gpt-4o',
+            max_tokens: 2500,
+            temperature: 0.3,
+            messages: [
+                { role: 'system', content: GENERATE_PROMPT },
+                {
+                    role: 'user',
+                    content: `Here are the objects detected in the photo:\n\n${description}\n\nGenerate a playable platformer level JSON based on these objects.`,
+                },
+            ],
+        });
+
+        const raw = generateResult.choices?.[0]?.message?.content;
+        if (!raw) {
+            console.error(`[${timestamp}] request=${requestId} Pass 2: empty response`);
+            return res.status(502).json({ error: 'AI returned empty level data' });
+        }
+
+        console.log(`[${timestamp}] request=${requestId} Pass 2 done (${raw.length} chars)`);
 
         // Strip markdown fences if present
         let cleaned = raw.trim();
