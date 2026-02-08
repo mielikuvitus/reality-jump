@@ -17,9 +17,9 @@
     overflow: hidden;
 }
 
-/* Large decorative background logo */
+/* Large decorative background logo — fixed to viewport so it never shifts */
 .capture-upload-screen__bg-logo {
-    position: absolute;
+    position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);

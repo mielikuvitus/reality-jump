@@ -190,8 +190,8 @@ export class PreviewScene extends Scene {
             ? `${obj.id} · ${obj.label} (${obj.type})${categoryTag}${anchorTag}`
             : `${obj.id} (${obj.type})${categoryTag}${anchorTag}`;
 
-        const label = this.add.text(rect.x + 4, rect.y - 18, labelText, {
-            fontSize: '11px',
+        const label = this.add.text(rect.x + 4, rect.y - 14, labelText, {
+            fontSize: '8px',
             color: '#ffffff',
             backgroundColor: 'rgba(0,0,0,0.7)',
             padding: { x: 4, y: 2 },

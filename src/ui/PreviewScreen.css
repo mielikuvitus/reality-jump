@@ -5,12 +5,6 @@
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(
-        135deg,
-        #0f0f1a 0%,
-        #1a1a2e 50%,
-        #16213e 100%
-    );
 }
 
 .preview-screen *,
@@ -19,8 +13,10 @@
     box-sizing: border-box;
 }
 
-/* Header */
+/* Header — above the JSON overlay */
 .preview-screen__header {
+    position: relative;
+    z-index: 200;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -84,14 +80,12 @@
     transform: scale(0.97);
 }
 
-/* Canvas Area */
+/* Canvas Area — fills all available space with even spacing */
 .preview-screen__canvas {
     flex: 1;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px 12px;
     min-height: 0;
+    padding: 4px 8px 16px;
 }
 
 /* Info Bar */
@@ -130,65 +124,64 @@
     font-family: 'SF Mono', 'Fira Code', monospace;
 }
 
-/* JSON Overlay */
-.preview-screen__json-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 100;
-    background: rgba(0, 0, 0, 0.75);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    display: flex;
-    flex-direction: column;
-    padding: 56px 12px 12px;
-    overflow: hidden;
-}
-
-.preview-screen__json-panel {
+/* JSON Section — glassmorphism panel below the preview, shares space with canvas */
+.preview-screen__json-section {
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    min-height: 0;
-    background: rgba(15, 15, 26, 0.95);
+    margin: 0 8px 16px;
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
+    border-radius: 12px;
     overflow: hidden;
 }
 
-.preview-screen__json-header {
+.preview-screen__json-tabs {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 4px 0 0;
+    gap: 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.preview-screen__json-header .json-tabs {
-    border-bottom: none;
-    margin-bottom: 0;
-}
-
-.preview-screen__json-close {
-    padding: 8px;
-    color: rgba(255, 255, 255, 0.6);
+.preview-screen__json-tab {
+    flex: 1;
+    padding: 10px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.4);
     background: none;
     border: none;
     cursor: pointer;
-    border-radius: 6px;
-    transition: all 0.15s ease;
+    transition: color 0.2s, background 0.2s;
+    font-family: inherit;
 }
 
-.preview-screen__json-close:hover {
+.preview-screen__json-tab:hover {
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.preview-screen__json-tab--active {
     color: rgba(255, 255, 255, 0.9);
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
 }
 
-.preview-screen__json-panel .json-viewer {
-    flex: 1;
+.preview-screen__json-viewer {
     margin: 0;
-    border-radius: 0 0 10px 10px;
-    max-height: none;
+    padding: 12px;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 10px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: pre-wrap;
+    word-break: break-all;
 }
 
 /* Mobile adjustments */

@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { ArrowLeft, Bug, BugOff, Share2 } from 'lucide-react';
+import { ArrowLeft, Share2 } from 'lucide-react';
 import { AUTO, Game } from 'phaser';
 import { GameScene } from '../game/scenes/GameScene';
 import { EventBus } from '../game/EventBus';
@@ -219,12 +219,8 @@ export function PlayScreen({ photoUrl, sceneData, onBack, onRetake, playerName =
                         HP: {health}
                     </span>
                 </div>
-                <button
-                    className={`play-screen__debug-btn ${debugEnabled ? 'play-screen__debug-btn--active' : ''}`}
-                    onClick={() => setDebugEnabled(!debugEnabled)}
-                >
-                    <Icon icon={debugEnabled ? Bug : BugOff} size={14} />
-                </button>
+                {/* Spacer to keep header layout balanced */}
+                <div style={{ width: 32 }} />
             </div>
 
             <div className="play-screen__game">
