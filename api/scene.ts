@@ -7,6 +7,7 @@ import { buildLevel, DetectionResponse } from '../server/levelBuilder';
 const openai = new OpenAI(); // reads OPENAI_API_KEY from env
 
 export const config = {
+    maxDuration: 60, // seconds — Hobby plan caps at 10s, Pro allows up to 60s
     api: {
         bodyParser: false, // disable body parsing so formidable can handle multipart
     },
@@ -42,7 +43,12 @@ RULES:
 
 function parseMultipart(req: VercelRequest): Promise<{ buffer: Buffer; mimetype: string }> {
     return new Promise((resolve, reject) => {
-        const form = formidable({
+        // Handle formidable v3 CJS/ESM interop — bundlers may wrap the default export
+        const makeForm = typeof formidable === 'function'
+            ? formidable
+            : (formidable as any).default ?? (formidable as any).formidable;
+
+        const form = makeForm({
             maxFileSize: 10 * 1024 * 1024,
             filter: (part) => part.mimetype?.startsWith('image/') ?? false,
         });
@@ -72,6 +78,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
+    if (!process.env.OPENAI_API_KEY) {
+        console.error('OPENAI_API_KEY is not set in environment variables');
+        return res.status(500).json({ error: 'Server misconfiguration: missing OPENAI_API_KEY' });
+    }
+
     const requestId = (req.headers['x-request-id'] as string) || 'no-request-id';
     const timestamp = new Date().toISOString();
 
@@ -95,7 +106,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     role: 'user',
                     content: [
                         { type: 'text', text: 'Detect all objects in this photo.' },
-                        { type: 'image_url', image_url: { url: dataUrl, detail: 'high' } },
+                        { type: 'image_url', image_url: { url: dataUrl, detail: 'low' } },
                     ],
                 },
             ],
