@@ -296,6 +296,10 @@ export class GameScene extends Scene {
                 D: this.input.keyboard.addKey('D'),
             };
             this.spaceKey = this.input.keyboard.addKey('SPACE');
+
+            // Let captured keys (W, A, D, Space, arrows) propagate to the DOM
+            // so React <input> fields in overlays can receive them.
+            this.input.keyboard.disableGlobalCapture();
         }
 
         // --- Listen for debug toggle from React ---
