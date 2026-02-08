@@ -1,8 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="white">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+    <style>
+        circle, path { stroke: #1a1a2e; fill: none; }
+        circle { fill: #1a1a2e; }
+        @media (prefers-color-scheme: dark) {
+            circle, path { stroke: white; }
+            circle { fill: white; }
+        }
+    </style>
     <circle cx="280" cy="80" r="48" />
-    <path d="M280 128 L280 260" stroke="white" stroke-width="50" stroke-linecap="round" fill="none" />
-    <path d="M280 160 L200 140 L180 100" stroke="white" stroke-width="50" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-    <path d="M280 160 L360 180 L420 160" stroke="white" stroke-width="50" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-    <path d="M280 260 L220 320 L180 360" stroke="white" stroke-width="50" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-    <path d="M280 260 L320 360 L340 440" stroke="white" stroke-width="50" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+    <path d="M280 128 L280 260" stroke-width="50" stroke-linecap="round" />
+    <path d="M280 160 L200 140 L180 100" stroke-width="50" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M280 160 L360 180 L420 160" stroke-width="50" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M280 260 L220 320 L180 360" stroke-width="50" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M280 260 L320 360 L340 440" stroke-width="50" stroke-linecap="round" stroke-linejoin="round" />
 </svg>
