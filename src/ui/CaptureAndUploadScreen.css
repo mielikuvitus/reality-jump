@@ -139,16 +139,19 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* Hint text + retake button on one row */
+.capture-upload-screen__preview-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 12px;
+}
+
 .capture-upload-screen__preview-hint {
     margin: 0;
     font-size: 13px;
     color: rgba(255, 255, 255, 0.4);
-    text-align: center;
-}
-
-.capture-upload-screen__preview-actions {
-    display: flex;
-    gap: 10px;
 }
 
 .capture-upload-screen__retake-btn {
