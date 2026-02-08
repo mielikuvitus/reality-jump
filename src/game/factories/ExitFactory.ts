@@ -19,7 +19,8 @@ export function createExit(
     ensureIconTexture(scene, 'exit', size, '#fbbf24');
     const key = getIconTextureKey('exit', size);
 
-    const sprite = scene.physics.add.sprite(x, y, key);
+    // Nudge upward slightly so the flag sits on the platform surface, not inside it
+    const sprite = scene.physics.add.sprite(x, y - size * 0.25, key);
     const body = sprite.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);
     body.setImmovable(true);

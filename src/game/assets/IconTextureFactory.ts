@@ -96,6 +96,51 @@ const SVG_DATA: Record<string, LucideSvgDef> = {
         ],
         fillFirst: true,
     },
+
+    /* ---- SquareSquare (platform_solid) ---- */
+    SquareSquare: {
+        paths: [
+            // outer rounded rect (x=3 y=3 w=18 h=18 rx=2)
+            'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z',
+            // inner rounded rect (x=8 y=8 w=8 h=8 rx=1)
+            'M9 8h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z',
+        ],
+    },
+
+    /* ---- SquareArrowDown (platform_soft) ---- */
+    SquareArrowDown: {
+        paths: [
+            'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z',
+            'M12 8v8',
+            'm8 12 4 4 4-4',
+        ],
+    },
+
+    /* ---- SquareActivity (platform_bouncy) ---- */
+    SquareActivity: {
+        paths: [
+            'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z',
+            'M17 12h-2l-2 5-2-10-2 5H7',
+        ],
+    },
+
+    /* ---- SquareCode (platform_slippery) ---- */
+    SquareCode: {
+        paths: [
+            'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z',
+            'm10 9-3 3 3 3',
+            'm14 15 3-3-3-3',
+        ],
+    },
+
+    /* ---- SquareX (platform_breakable) ---- */
+    SquareX: {
+        paths: [
+            'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z',
+            'm15 9-6 6',
+            'm9 9 6 6',
+        ],
+    },
 };
 
 // ---------------------------------------------------------------------------

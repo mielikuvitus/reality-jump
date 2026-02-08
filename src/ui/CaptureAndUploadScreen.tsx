@@ -47,7 +47,7 @@ export function CaptureAndUploadScreen() {
     const [flowState, setFlowState] = useState<UploadFlowState | null>(null);
 
     // Dev panel state
-    const [devPanelOpen, setDevPanelOpen] = useState(true);
+    const [devPanelOpen, setDevPanelOpen] = useState(false);
     const [showImageInfo, setShowImageInfo] = useState(() => {
         const stored = localStorage.getItem(STORAGE_KEYS.showImageInfo);
         return stored === 'true';
@@ -184,14 +184,14 @@ export function CaptureAndUploadScreen() {
                             alt="Captured photo"
                             className="capture-upload-screen__preview-img"
                         />
-                        <p className="capture-upload-screen__preview-hint">Review your photo or generate a level</p>
-                        <div className="capture-upload-screen__preview-actions">
+                        <div className="capture-upload-screen__preview-row">
+                            <p className="capture-upload-screen__preview-hint">Review your photo or generate a level</p>
                             <button
                                 type="button"
                                 className="capture-upload-screen__retake-btn"
                                 onClick={handleRetake}
                             >
-                                <Icon icon={RefreshCw} size={16} /> Retake
+                                <Icon icon={RefreshCw} size={14} /> Retake
                             </button>
                         </div>
                         {capturedBlob && (

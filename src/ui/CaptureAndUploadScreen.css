@@ -1,6 +1,7 @@
 /* Capture & Upload Screen - Main Container */
 
 .capture-upload-screen {
+    --nav-height: 48px;
     position: relative;
     min-height: 100vh;
     min-height: 100dvh; /* Dynamic viewport height for mobile */
@@ -29,11 +30,26 @@
     z-index: 0;
 }
 
-/* Top nav bar — transparent, always visible */
+/* Top nav bar — always visible, even above fixed overlays like PlayScreen.
+ * --nav-height is defined on .capture-upload-screen and consumed here + by PlayScreen. */
 .capture-upload-screen__nav {
-    position: relative;
-    z-index: 1;
-    padding: 16px 20px 16px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    height: var(--nav-height);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    background: rgba(15, 15, 26, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+/* Spacer so content below the fixed nav doesn't get hidden behind it */
+.capture-upload-screen__nav + .capture-upload-screen__content {
+    margin-top: var(--nav-height);
 }
 
 .capture-upload-screen__nav-logo {
@@ -123,16 +139,19 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* Hint text + retake button on one row */
+.capture-upload-screen__preview-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 12px;
+}
+
 .capture-upload-screen__preview-hint {
     margin: 0;
     font-size: 13px;
     color: rgba(255, 255, 255, 0.4);
-    text-align: center;
-}
-
-.capture-upload-screen__preview-actions {
-    display: flex;
-    gap: 10px;
 }
 
 .capture-upload-screen__retake-btn {
@@ -353,10 +372,6 @@
 
 /* Responsive adjustments */
 @media (max-width: 480px) {
-    .capture-upload-screen__nav {
-        padding: 12px 16px 16px;
-    }
-
     .capture-upload-screen__nav-title {
         font-size: 20px;
     }

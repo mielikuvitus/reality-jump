@@ -20,7 +20,7 @@ interface PreviewScreenProps {
 }
 
 export function PreviewScreen({ photoUrl, sceneData, onBack }: PreviewScreenProps) {
-    const [debugEnabled, setDebugEnabled] = useState(isDev);
+    const [debugEnabled, setDebugEnabled] = useState(true);
 
     return (
         <div className="preview-screen">
@@ -33,7 +33,7 @@ export function PreviewScreen({ photoUrl, sceneData, onBack }: PreviewScreenProp
                     className={`preview-screen__debug-btn ${debugEnabled ? 'preview-screen__debug-btn--active' : ''}`}
                     onClick={() => setDebugEnabled(!debugEnabled)}
                 >
-                    <Icon icon={debugEnabled ? Bug : BugOff} size={14} /> Debug
+                    <Icon icon={debugEnabled ? Bug : BugOff} size={14} />
                 </button>
             </div>
 

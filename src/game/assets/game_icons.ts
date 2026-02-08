@@ -13,7 +13,10 @@
  */
 
 /** Semantic roles that can appear as Phaser sprites. */
-export type GameIconKey = 'player' | 'enemy' | 'exit' | 'coin' | 'health';
+export type GameIconKey =
+    | 'player' | 'enemy' | 'exit' | 'coin' | 'health'
+    | 'platform_solid' | 'platform_soft' | 'platform_bouncy'
+    | 'platform_slippery' | 'platform_breakable';
 
 /**
  * Maps each gameplay role to a Lucide icon name.
@@ -25,6 +28,12 @@ export const GAME_ICONS: Record<GameIconKey, string> = {
     exit:   'Flag',
     coin:   'CirclePoundSterling',
     health: 'Heart',
+
+    platform_solid:     'SquareSquare',
+    platform_soft:      'SquareArrowDown',
+    platform_bouncy:    'SquareActivity',
+    platform_slippery:  'SquareCode',
+    platform_breakable: 'SquareX',
 };
 
 /**
@@ -37,4 +46,10 @@ export const GAME_ICON_COLORS: Record<GameIconKey, string> = {
     exit:   '#fbbf24',
     coin:   '#fbbf24',
     health: '#ef4444',
+
+    platform_solid:     '#4ade80',
+    platform_soft:      '#c084fc',
+    platform_bouncy:    '#fbbf24',
+    platform_slippery:  '#38bdf8',
+    platform_breakable: '#f87171',
 };

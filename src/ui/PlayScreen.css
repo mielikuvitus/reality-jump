@@ -10,10 +10,11 @@
  */
 
 /* position:fixed prevents body scroll on mobile.
+ * top uses --nav-height so the game never overlaps the Reality Jump nav.
  * left/right:0 + max-width + margin:auto centers on desktop. */
 .play-screen {
     position: fixed;
-    top: 0;
+    top: var(--nav-height, 48px);
     left: 0;
     right: 0;
     bottom: 0;

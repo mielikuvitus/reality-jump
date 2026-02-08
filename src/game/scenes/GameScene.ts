@@ -334,7 +334,7 @@ export class GameScene extends Scene {
 
         // Surface modifiers (soft = slower movement, normal jump)
         const onSoft = body.blocked.down && this.currentSurfaceType === 'soft';
-        const speedMul = onSoft ? 0.6 : 1;
+        const speedMul = onSoft ? 0.35 : 1;
         const jumpMul = 1;
 
         // Horizontal movement (world-relative speed)

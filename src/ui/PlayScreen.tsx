@@ -37,7 +37,7 @@ export function PlayScreen({ photoUrl, sceneData, onBack, onRetake }: PlayScreen
     const gameRef = useRef<Game | null>(null);
     const inputState = useMemo(() => createInputState(), []);
 
-    const [debugEnabled, setDebugEnabled] = useState(isDev);
+    const [debugEnabled, setDebugEnabled] = useState(false);
     const [won, setWon] = useState(false);
     const [lost, setLost] = useState(false);
     const [score, setScore] = useState(0);
