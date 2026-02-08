@@ -140,7 +140,29 @@
 .lose-overlay__score {
     font-size: 16px;
     color: rgba(255, 255, 255, 0.7);
-    margin: 0 0 20px;
+    margin: 0 0 12px;
+}
+
+.lose-overlay__names {
+    margin: 0 0 20px 0;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    text-align: center;
+}
+
+.lose-overlay__player-name {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.lose-overlay__level-name {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
 }
 
 .lose-overlay__actions {

@@ -48,6 +48,11 @@ export function WinOverlay({ score, onPlayAgain, onRetake, onShare, playerName, 
                     <p className="win-overlay__score">Score: {score}</p>
                 )}
 
+                <div className="win-overlay__names">
+                    <p className="win-overlay__player-name">{playerName}</p>
+                    {levelName && <p className="win-overlay__level-name">{levelName}</p>}
+                </div>
+
                 {shareState === 'sharing' && (
                     <div className="win-overlay__share-status">
                         <Icon icon={Loader2} size={20} className="spin" /> Sharing...
@@ -70,10 +75,6 @@ export function WinOverlay({ score, onPlayAgain, onRetake, onShare, playerName, 
                     <div className="win-overlay__actions">
                         {onShare && (
                             <>
-                                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', margin: '0 0 4px', textAlign: 'center' }}>
-                                    Sharing as <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{playerName}</strong>
-                                    {levelName && <><br />Level: <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{levelName}</strong></>}
-                                </p>
                                 <button className="glass-button glass-button--hero" onClick={handleShareSubmit}>
                                     <Icon icon={Share2} size={16} /> Share Level
                                 </button>

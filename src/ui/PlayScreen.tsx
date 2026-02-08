@@ -244,13 +244,13 @@ export function PlayScreen({ photoUrl, sceneData, onBack, onRetake, playerName =
                         <div className="lose-overlay__card">
                             <h2 className="lose-overlay__title">Game Over</h2>
                             {score > 0 && <p className="lose-overlay__score">Score: {score}</p>}
+                            <div className="lose-overlay__names">
+                                <p className="lose-overlay__player-name">{playerName}</p>
+                                <p className="lose-overlay__level-name">{levelName}</p>
+                            </div>
                             <div className="lose-overlay__actions">
                                 {canShare && loseShareState !== 'shared' && (
                                     <>
-                                        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', margin: '0 0 4px', textAlign: 'center' }}>
-                                            Sharing as <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{playerName}</strong>
-                                            <br />Level: <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{levelName}</strong>
-                                        </p>
                                         <button className="glass-button glass-button--hero" onClick={handleLoseShare}
                                             disabled={loseShareState === 'sharing'}>
                                             {loseShareState === 'sharing' ? 'Sharing...' : <><Icon icon={Share2} size={16} /> Share Level</>}
