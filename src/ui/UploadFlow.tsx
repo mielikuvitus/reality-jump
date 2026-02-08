@@ -89,6 +89,8 @@ const MOCK_SCENE_RESPONSE = {
     },
     surfaces: [],
     rules: [],
+    player_name: 'cheerful-bouncy-otter',
+    level_name: 'Cozy Room Adventure',
 } as SceneResponse;
 
 export function UploadFlow({
@@ -295,6 +297,8 @@ export function UploadFlow({
                 sceneData={validatedScene}
                 onBack={handleBackFromPlay}
                 onRetake={onRetake}
+                playerName={sceneData?.player_name || 'happy-little-adventurer'}
+                levelName={sceneData?.level_name || 'Mystery Level'}
             />
         );
     }

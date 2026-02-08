@@ -15,25 +15,25 @@ interface WinOverlayProps {
     score: number;
     onPlayAgain: () => void;
     onRetake: () => void;
-    onShare?: (playerName: string, levelName: string) => Promise<void>;
+    onShare?: () => Promise<void>;
+    playerName?: string;
+    levelName?: string;
 }
 
-type ShareState = 'idle' | 'form' | 'sharing' | 'shared' | 'error';
+type ShareState = 'idle' | 'sharing' | 'shared' | 'error';
 
-export function WinOverlay({ score, onPlayAgain, onRetake, onShare }: WinOverlayProps) {
+export function WinOverlay({ score, onPlayAgain, onRetake, onShare, playerName, levelName }: WinOverlayProps) {
     const [shareState, setShareState] = useState<ShareState>('idle');
-    const [playerName, setPlayerName] = useState('');
-    const [levelName, setLevelName] = useState('');
 
     const handleShareSubmit = async () => {
-        if (!onShare || !playerName.trim() || !levelName.trim()) return;
+        if (!onShare) return;
         setShareState('sharing');
         try {
-            await onShare(playerName.trim(), levelName.trim());
+            await onShare();
             setShareState('shared');
         } catch {
             setShareState('error');
-            setTimeout(() => setShareState('form'), 2000);
+            setTimeout(() => setShareState('idle'), 2000);
         }
     };
 
@@ -46,41 +46,6 @@ export function WinOverlay({ score, onPlayAgain, onRetake, onShare }: WinOverlay
                 <h2 className="win-overlay__title">You Win!</h2>
                 {score > 0 && (
                     <p className="win-overlay__score">Score: {score}</p>
-                )}
-
-                {shareState === 'form' && (
-                    <div className="win-overlay__share-form">
-                        <input
-                            className="glass-input"
-                            type="text"
-                            placeholder="Your name"
-                            maxLength={30}
-                            value={playerName}
-                            onChange={(e) => setPlayerName(e.target.value)}
-                            autoFocus
-                        />
-                        <input
-                            className="glass-input"
-                            type="text"
-                            placeholder="Level name"
-                            maxLength={40}
-                            value={levelName}
-                            onChange={(e) => setLevelName(e.target.value)}
-                        />
-                        <button
-                            className="glass-button glass-button--hero"
-                            onClick={handleShareSubmit}
-                            disabled={!playerName.trim() || !levelName.trim()}
-                        >
-                            <Icon icon={Share2} size={16} /> Share
-                        </button>
-                        <button
-                            className="glass-button glass-button--secondary"
-                            onClick={() => setShareState('idle')}
-                        >
-                            Cancel
-                        </button>
-                    </div>
                 )}
 
                 {shareState === 'sharing' && (
@@ -97,17 +62,34 @@ export function WinOverlay({ score, onPlayAgain, onRetake, onShare }: WinOverlay
 
                 {shareState === 'error' && (
                     <div className="win-overlay__share-status win-overlay__share-status--error">
-                        Failed to share. Retrying...
+                        Failed to share. Try again.
                     </div>
                 )}
 
-                {(shareState === 'idle' || shareState === 'shared') && (
+                {(shareState === 'idle' || shareState === 'error') && (
                     <div className="win-overlay__actions">
-                        {onShare && shareState !== 'shared' && (
-                            <button className="glass-button glass-button--hero" onClick={() => setShareState('form')}>
-                                <Icon icon={Share2} size={16} /> Share Level
-                            </button>
+                        {onShare && (
+                            <>
+                                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', margin: '0 0 4px', textAlign: 'center' }}>
+                                    Sharing as <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{playerName}</strong>
+                                    {levelName && <><br />Level: <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{levelName}</strong></>}
+                                </p>
+                                <button className="glass-button glass-button--hero" onClick={handleShareSubmit}>
+                                    <Icon icon={Share2} size={16} /> Share Level
+                                </button>
+                            </>
                         )}
+                        <button className="glass-button glass-button--hero" onClick={onPlayAgain}>
+                            <Icon icon={RefreshCw} size={16} /> Play Again
+                        </button>
+                        <button className="glass-button glass-button--secondary" onClick={onRetake}>
+                            <Icon icon={Camera} size={16} /> New Photo
+                        </button>
+                    </div>
+                )}
+
+                {shareState === 'shared' && (
+                    <div className="win-overlay__actions">
                         <button className="glass-button glass-button--hero" onClick={onPlayAgain}>
                             <Icon icon={RefreshCw} size={16} /> Play Again
                         </button>

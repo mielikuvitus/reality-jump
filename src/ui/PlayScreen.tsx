@@ -30,9 +30,11 @@ interface PlayScreenProps {
     sceneData: SceneV1;
     onBack: () => void;
     onRetake: () => void;
+    playerName?: string;
+    levelName?: string;
 }
 
-export function PlayScreen({ photoUrl, sceneData, onBack, onRetake }: PlayScreenProps) {
+export function PlayScreen({ photoUrl, sceneData, onBack, onRetake, playerName = 'happy-little-adventurer', levelName = 'Mystery Level' }: PlayScreenProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const gameRef = useRef<Game | null>(null);
     const inputState = useMemo(() => createInputState(), []);
@@ -42,9 +44,6 @@ export function PlayScreen({ photoUrl, sceneData, onBack, onRetake }: PlayScreen
     const [lost, setLost] = useState(false);
     const [score, setScore] = useState(0);
     const [health, setHealth] = useState(10);
-    const [sharePrompt, setSharePrompt] = useState(false);
-    const [losePlayerName, setLosePlayerName] = useState('');
-    const [loseLevelName, setLoseLevelName] = useState('');
     const [loseShareState, setLoseShareState] = useState<'idle' | 'sharing' | 'shared' | 'error'>('idle');
 
     // Preload photo dimensions, then create Phaser game
@@ -166,35 +165,33 @@ export function PlayScreen({ photoUrl, sceneData, onBack, onRetake }: PlayScreen
         EventBus.emit('toggle-debug', debugEnabled);
     }, [debugEnabled]);
 
-    // Share handler — converts photoUrl (Object URL) back to a Blob for upload
-    const handleShare = useCallback(async (playerName: string, levelName: string) => {
+    // Share handler — uses AI-generated names
+    const handleShare = useCallback(async () => {
         const response = await fetch(photoUrl);
         const blob = await response.blob();
         await shareLevel(playerName, levelName, sceneData, blob, score);
-    }, [photoUrl, sceneData, score]);
+    }, [photoUrl, sceneData, score, playerName, levelName]);
 
     const canShare = isSupabaseConfigured();
 
     const handleLoseShare = useCallback(async () => {
-        if (!losePlayerName.trim() || !loseLevelName.trim()) return;
         setLoseShareState('sharing');
         try {
             const response = await fetch(photoUrl);
             const blob = await response.blob();
-            await shareLevel(losePlayerName.trim(), loseLevelName.trim(), sceneData, blob, score);
+            await shareLevel(playerName, levelName, sceneData, blob, score);
             setLoseShareState('shared');
         } catch {
             setLoseShareState('error');
             setTimeout(() => setLoseShareState('idle'), 2000);
         }
-    }, [photoUrl, sceneData, score, losePlayerName, loseLevelName]);
+    }, [photoUrl, sceneData, score, playerName, levelName]);
 
     const handlePlayAgain = () => {
         setWon(false);
         setLost(false);
         setScore(0);
         setHealth(10);
-        setSharePrompt(false);
         setLoseShareState('idle');
         // Restart the scene
         if (gameRef.current) {
@@ -238,6 +235,8 @@ export function PlayScreen({ photoUrl, sceneData, onBack, onRetake }: PlayScreen
                         onPlayAgain={handlePlayAgain}
                         onRetake={onRetake}
                         onShare={canShare ? handleShare : undefined}
+                        playerName={playerName}
+                        levelName={levelName}
                     />
                 )}
                 {lost && (
@@ -245,41 +244,32 @@ export function PlayScreen({ photoUrl, sceneData, onBack, onRetake }: PlayScreen
                         <div className="lose-overlay__card">
                             <h2 className="lose-overlay__title">Game Over</h2>
                             {score > 0 && <p className="lose-overlay__score">Score: {score}</p>}
-                            {sharePrompt ? (
-                                <div className="win-overlay__share-form">
-                                    <input className="glass-input" type="text" placeholder="Your name" maxLength={30}
-                                        value={losePlayerName} onChange={(e) => setLosePlayerName(e.target.value)} autoFocus />
-                                    <input className="glass-input" type="text" placeholder="Level name" maxLength={40}
-                                        value={loseLevelName} onChange={(e) => setLoseLevelName(e.target.value)} />
-                                    {loseShareState === 'shared' ? (
-                                        <p style={{ color: '#4ade80', textAlign: 'center' }}>Level shared!</p>
-                                    ) : loseShareState === 'error' ? (
-                                        <p style={{ color: '#f87171', textAlign: 'center' }}>Failed. Try again.</p>
-                                    ) : (
+                            <div className="lose-overlay__actions">
+                                {canShare && loseShareState !== 'shared' && (
+                                    <>
+                                        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', margin: '0 0 4px', textAlign: 'center' }}>
+                                            Sharing as <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{playerName}</strong>
+                                            <br />Level: <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{levelName}</strong>
+                                        </p>
                                         <button className="glass-button glass-button--hero" onClick={handleLoseShare}
-                                            disabled={loseShareState === 'sharing' || !losePlayerName.trim() || !loseLevelName.trim()}>
-                                            {loseShareState === 'sharing' ? 'Sharing...' : 'Share'}
+                                            disabled={loseShareState === 'sharing'}>
+                                            {loseShareState === 'sharing' ? 'Sharing...' : <><Icon icon={Share2} size={16} /> Share Level</>}
                                         </button>
-                                    )}
-                                    <button className="glass-button glass-button--secondary" onClick={() => setSharePrompt(false)}>
-                                        Cancel
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="lose-overlay__actions">
-                                    {canShare && (
-                                        <button className="glass-button glass-button--hero" onClick={() => setSharePrompt(true)}>
-                                            <Icon icon={Share2} size={16} /> Share Level
-                                        </button>
-                                    )}
-                                    <button className="glass-button lose-overlay__retry-btn" onClick={handlePlayAgain}>
-                                        Try Again
-                                    </button>
-                                    <button className="glass-button glass-button--secondary" onClick={onRetake}>
-                                        New Photo
-                                    </button>
-                                </div>
-                            )}
+                                    </>
+                                )}
+                                {loseShareState === 'shared' && (
+                                    <p style={{ color: '#4ade80', textAlign: 'center' }}>Level shared!</p>
+                                )}
+                                {loseShareState === 'error' && (
+                                    <p style={{ color: '#f87171', textAlign: 'center' }}>Failed. Try again.</p>
+                                )}
+                                <button className="glass-button lose-overlay__retry-btn" onClick={handlePlayAgain}>
+                                    Try Again
+                                </button>
+                                <button className="glass-button glass-button--secondary" onClick={onRetake}>
+                                    New Photo
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

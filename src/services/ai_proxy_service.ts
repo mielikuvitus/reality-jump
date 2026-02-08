@@ -60,6 +60,10 @@ export interface SceneResponse {
         pickups: unknown[];
     };
     rules: unknown[];
+    /** AI-generated player name in adjective-adjective-noun format */
+    player_name?: string;
+    /** AI-generated level name based on photo content */
+    level_name?: string;
     /** Raw AI detection data — only present in non-mock responses */
     _debug?: {
         raw_ai_response: string;

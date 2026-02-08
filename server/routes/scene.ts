@@ -23,15 +23,21 @@ const upload = multer({
 
 export const sceneRouter = Router();
 
-// AI prompt: detection ONLY — no gameplay decisions
+// AI prompt: detection + name generation
 const DETECTION_PROMPT = `You are an object detection AI. You receive a photo and detect objects in it.
 
 RESPOND WITH ONLY VALID JSON — no markdown, no backticks, no explanation.
 
 Detect objects visible in the photo. For each object, return its label, category, confidence, and bounding box in normalized coordinates (0.0 to 1.0 relative to image dimensions).
 
+Also generate:
+1. A fun player name in the format "adjective-adjective-noun" (noun must be a nature thing or animal)
+2. A creative level name inspired by what you see in the photo (2-4 words, title case)
+
 {
   "image": { "w": <estimated_width>, "h": <estimated_height> },
+  "player_name": "<adjective-adjective-noun>",
+  "level_name": "<creative level name based on photo>",
   "detections": [
     {
       "label": "<what the object is>",
@@ -49,7 +55,9 @@ RULES:
 - Return up to 15 detections, prioritizing larger and more distinct objects.
 - Be accurate with bounding boxes — they should tightly fit the object.
 - category must be one of: furniture, food, plant, electric, other.
-- Prefer detecting flat horizontal surfaces (tables, shelves, counters, desks, books, window sills) — these are the most important objects.`;
+- Prefer detecting flat horizontal surfaces (tables, shelves, counters, desks, books, window sills) — these are the most important objects.
+- player_name: always lowercase with hyphens, family-friendly. Use fun adjectives and an animal or nature noun. Examples: "brave-sparkly-penguin", "fuzzy-cosmic-otter", "cheerful-mighty-fox".
+- level_name: a short creative title inspired by the scene in the photo. Family-friendly, title case. Examples: "Kitchen Quest", "Sunny Garden Dash", "Cozy Bookshelf Canyon".`;
 
 /**
  * POST /api/scene
@@ -140,9 +148,11 @@ sceneRouter.post('/', upload.single('image'), async (req: Request, res: Response
 
         console.log(`[${timestamp}] request=${requestId} level built: ${scene.objects.length} objects, ${scene.spawns.pickups.length} pickups, ${scene.spawns.enemies.length} enemies`);
 
-        // Return scene + raw AI detections for developer mode
+        // Return scene + AI-generated names + raw AI detections for developer mode
         res.json({
             ...scene,
+            player_name: detections.player_name || 'happy-little-adventurer',
+            level_name: detections.level_name || 'Mystery Level',
             _debug: {
                 raw_ai_response: cleaned,
                 detections,
